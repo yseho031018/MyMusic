@@ -21,9 +21,17 @@ import java.io.InputStream;
 
 public class MusicApi {
 
-    private final String baseUrl;
+    private volatile String baseUrl;
 
     public MusicApi(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public void setBaseUrl(String baseUrl) {
         this.baseUrl = baseUrl;
     }
 
@@ -176,4 +184,68 @@ public class MusicApi {
         }
     }
 
+    // 서버(포트 8080) 헬스체크
+    public static boolean checkServerHealth(String baseUrl, int timeoutMs) {
+        try {
+            URL url = new URL(baseUrl + "/api/songs");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(timeoutMs);
+            conn.setReadTimeout(timeoutMs);
+            int code = conn.getResponseCode();
+            conn.disconnect();
+            return code == 200;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // PC 데스크톱 매니저(포트 8088) 대기 상태 확인
+    public static JSONObject checkManagerStatus(String hostIp, int timeoutMs) {
+        try {
+            URL url = new URL("http://" + hostIp + ":8088/api/control/status");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(timeoutMs);
+            conn.setReadTimeout(timeoutMs);
+            if (conn.getResponseCode() == 200) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                    return new JSONObject(sb.toString());
+                }
+            }
+            conn.disconnect();
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    // 스마트폰에서 PC 데스크톱 매니저(포트 8088)로 서버 시작 명령 전송
+    public static boolean remoteStartServer(String hostIp, int timeoutMs) {
+        try {
+            URL url = new URL("http://" + hostIp + ":8088/api/control/start");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(timeoutMs);
+            conn.setReadTimeout(timeoutMs);
+            conn.setDoOutput(true);
+            int code = conn.getResponseCode();
+            conn.disconnect();
+            return code == 200;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // URL에서 호스트 IP 추출 (예: http://192.168.45.247:8080 -> 192.168.45.247)
+    public static String extractHost(String urlStr) {
+        try {
+            URL url = new URL(urlStr);
+            return url.getHost();
+        } catch (Exception e) {
+            return urlStr.replace("http://", "").replace("https://", "").split(":")[0];
+        }
+    }
 }

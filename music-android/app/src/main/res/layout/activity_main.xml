@@ -44,15 +44,53 @@
 
     </LinearLayout>
 
-    <!-- 서버 및 재생 상태 -->
-    <TextView
-        android:id="@+id/txtStatus"
+    <!-- 서버 및 재생 상태 바 -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="음악 플레이어"
-        android:textColor="#AAAAAA"
-        android:textSize="13sp"
-        android:layout_marginTop="10dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:id="@+id/txtStatus"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="음악 플레이어"
+            android:textColor="#AAAAAA"
+            android:textSize="13sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <Button
+            android:id="@+id/btnRemoteStart"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:text="⚡ 서버 켜기"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:visibility="gone"
+            android:backgroundTint="#2E7D32"
+            android:layout_marginEnd="6dp" />
+
+        <Button
+            android:id="@+id/btnServerSettings"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:text="⚙️ 서버"
+            android:textSize="11sp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:backgroundTint="#33333E" />
+
+    </LinearLayout>
 
 
     <!-- 음악 목록 -->

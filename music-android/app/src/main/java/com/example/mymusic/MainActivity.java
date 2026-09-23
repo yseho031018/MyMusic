@@ -28,18 +28,32 @@ import com.example.mymusic.db.MusicDatabase;
 import com.example.mymusic.model.Song;
 import com.example.mymusic.network.MusicApi;
 import com.example.mymusic.player.MusicPlayer;
+import android.app.AlertDialog;
+import android.content.SharedPreferences;
+import android.widget.EditText;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
 
-    private static final String SERVER_URL =
-            "http://192.168.45.240:8080";
+    public static final String DEFAULT_LAPTOP_IP = "192.168.45.247";
+    public static final String DEFAULT_DESKTOP_IP = "192.168.45.240";
+    private static final List<String> CANDIDATE_IPS = Arrays.asList(DEFAULT_LAPTOP_IP, DEFAULT_DESKTOP_IP);
+
+    private static final String PREFS_NAME = "music_prefs";
+    private static final String PREF_KEY_SERVER_IP = "server_ip";
+    private static final String PREF_KEY_AUTO_MODE = "auto_server_discovery";
 
     private TextView txtStatus;
+    private Button btnRemoteStart;
+    private Button btnServerSettings;
+    private String detectedManagerHost = null;
+
     private TextView txtNowPlaying;
     private TextView txtArtist;
     private TextView txtCurrentTime;
@@ -108,7 +122,12 @@ public class MainActivity extends Activity {
 
         // 상단 상태 및 목록
         txtStatus = findViewById(R.id.txtStatus);
+        btnRemoteStart = findViewById(R.id.btnRemoteStart);
+        btnServerSettings = findViewById(R.id.btnServerSettings);
         recyclerSongs = findViewById(R.id.recyclerSongs);
+
+        btnRemoteStart.setOnClickListener(v -> triggerRemoteStart());
+        btnServerSettings.setOnClickListener(v -> showServerSettingsDialog());
 
         // 탭 버튼
         btnTabServer = findViewById(R.id.btnTabServer);
@@ -135,7 +154,9 @@ public class MainActivity extends Activity {
         btnPlayPause = findViewById(R.id.btnPlayPause);
         btnNext = findViewById(R.id.btnNext);
 
-        musicApi = new MusicApi(SERVER_URL);
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String initialIp = prefs.getString(PREF_KEY_SERVER_IP, DEFAULT_LAPTOP_IP);
+        musicApi = new MusicApi("http://" + initialIp + ":8080");
         musicPlayer = new MusicPlayer(this);
         musicDb = new MusicDatabase(this);
 
@@ -417,39 +438,242 @@ public class MainActivity extends Activity {
         songAdapter.setSongs(songs);
     }
 
-    // 서버에서 음악 목록 불러오기
+    // 1. 서버에서 음악 목록 불러오기 (다중 IP 자동 감지 & 원격 매니저 탐색)
     private void loadSongs() {
         if (!isLocalTab) {
-            txtStatus.setText("서버 연결 중...");
+            txtStatus.setText("서버 연결 확인 중...");
         }
 
         new Thread(() -> {
-            try {
-                List<Song> result = musicApi.getSongs();
+            String activeUrl = resolveActiveServer();
 
-                runOnUiThread(() -> {
-                    serverSongs = result;
-
-                    if (!isLocalTab) {
-                        songs = new ArrayList<>(serverSongs);
-                        songAdapter.setSongs(songs);
-                        txtStatus.setText("서버 음악 (" + songs.size() + "곡)");
-                    }
-                });
-
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    // 서버 연결 실패 시 다운로드 보관함으로 자동 전환
-                    switchTab(true);
-
-                    if (songs.isEmpty()) {
-                        txtStatus.setText("서버 오프라인 (보관함에 저장된 곡 없음)");
-                    } else {
-                        txtStatus.setText("보관함: " + songs.size() + "곡 (오프라인)");
-                    }
-                });
+            if (activeUrl != null) {
+                musicApi.setBaseUrl(activeUrl);
+                try {
+                    List<Song> result = musicApi.getSongs();
+                    runOnUiThread(() -> {
+                        serverSongs = result;
+                        btnRemoteStart.setVisibility(View.GONE);
+                        if (!isLocalTab) {
+                            songs = new ArrayList<>(serverSongs);
+                            songAdapter.setSongs(songs);
+                            txtStatus.setText(getServerDisplayName(activeUrl) + " (" + songs.size() + "곡)");
+                        }
+                    });
+                    return;
+                } catch (Exception ignored) {
+                }
             }
+
+            // 음악 서버(8080)가 오프라인인 경우: PC 데스크톱 매니저(8088) 확인
+            String managerHost = findReachableManager();
+            runOnUiThread(() -> {
+                if (managerHost != null) {
+                    detectedManagerHost = managerHost;
+                    btnRemoteStart.setVisibility(View.VISIBLE);
+                    btnRemoteStart.setText("⚡ " + getHostNickname(managerHost) + " 켜기");
+                    txtStatus.setText(getHostNickname(managerHost) + " 대기 중 (8088)");
+                } else {
+                    btnRemoteStart.setVisibility(View.GONE);
+                }
+
+                // 서버 연결 실패 시 다운로드 보관함으로 자동 전환
+                switchTab(true);
+
+                if (songs.isEmpty()) {
+                    txtStatus.setText("서버 오프라인 (보관함에 저장된 곡 없음)");
+                } else {
+                    txtStatus.setText("보관함: " + songs.size() + "곡 (오프라인)");
+                }
+            });
         }).start();
+    }
+
+    // 켜져 있는 활성 서버(8080) 찾기 (설정된 선호 서버 우선, 실패 시 후보 IP 자동 탐색)
+    private String resolveActiveServer() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        boolean autoDiscovery = prefs.getBoolean(PREF_KEY_AUTO_MODE, true);
+        String savedIp = prefs.getString(PREF_KEY_SERVER_IP, DEFAULT_LAPTOP_IP);
+
+        // 수동 지정 모드인 경우 해당 IP 먼저 검사
+        if (!autoDiscovery && savedIp != null && !savedIp.isEmpty()) {
+            String candidateUrl = "http://" + savedIp + ":8080";
+            if (MusicApi.checkServerHealth(candidateUrl, 2500)) {
+                return candidateUrl;
+            }
+        }
+
+        // 자동 탐색 모드 (또는 수동 서버가 꺼져 있을 때 failover)
+        List<String> candidates = new ArrayList<>();
+        if (savedIp != null && !savedIp.isEmpty()) {
+            candidates.add("http://" + savedIp + ":8080");
+        }
+        for (String ip : CANDIDATE_IPS) {
+            String url = "http://" + ip + ":8080";
+            if (!candidates.contains(url)) {
+                candidates.add(url);
+            }
+        }
+
+        for (String url : candidates) {
+            if (MusicApi.checkServerHealth(url, 2000)) {
+                return url;
+            }
+        }
+        return null;
+    }
+
+    // 원격 제어 데몬(8088)이 살아있는 호스트 찾기
+    private String findReachableManager() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String savedIp = prefs.getString(PREF_KEY_SERVER_IP, DEFAULT_LAPTOP_IP);
+
+        List<String> ips = new ArrayList<>();
+        if (savedIp != null && !savedIp.isEmpty()) ips.add(savedIp);
+        for (String ip : CANDIDATE_IPS) {
+            if (!ips.contains(ip)) ips.add(ip);
+        }
+
+        for (String ip : ips) {
+            JSONObject obj = MusicApi.checkManagerStatus(ip, 1500);
+            if (obj != null) {
+                return ip;
+            }
+        }
+        return null;
+    }
+
+    // 스마트폰에서 PC 서버 원격 기동 트리거
+    private void triggerRemoteStart() {
+        if (detectedManagerHost == null) {
+            Toast.makeText(this, "연결 가능한 서버 매니저가 없습니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        btnRemoteStart.setEnabled(false);
+        btnRemoteStart.setText("서버 켜는 중...");
+        Toast.makeText(this, getHostNickname(detectedManagerHost) + " 서버를 원격으로 켭니다...", Toast.LENGTH_SHORT).show();
+
+        new Thread(() -> {
+            boolean requested = MusicApi.remoteStartServer(detectedManagerHost, 3000);
+            if (!requested) {
+                runOnUiThread(() -> {
+                    btnRemoteStart.setEnabled(true);
+                    btnRemoteStart.setText("⚡ " + getHostNickname(detectedManagerHost) + " 켜기");
+                    Toast.makeText(MainActivity.this, "원격 기동 요청 실패 (매니저 응답 없음)", Toast.LENGTH_SHORT).show();
+                });
+                return;
+            }
+
+            // 서버가 켜질 때까지 최대 10초간 폴링 (매 1.5초마다 헬스체크)
+            String targetServerUrl = "http://" + detectedManagerHost + ":8080";
+            boolean isUp = false;
+            for (int i = 0; i < 7; i++) {
+                try {
+                    Thread.sleep(1500);
+                } catch (InterruptedException ignored) {}
+
+                if (MusicApi.checkServerHealth(targetServerUrl, 2000)) {
+                    isUp = true;
+                    break;
+                }
+            }
+
+            final boolean success = isUp;
+            runOnUiThread(() -> {
+                btnRemoteStart.setEnabled(true);
+                if (success) {
+                    Toast.makeText(MainActivity.this, "✅ 서버가 켜졌습니다!", Toast.LENGTH_SHORT).show();
+                    switchTab(false);
+                    loadSongs();
+                } else {
+                    btnRemoteStart.setText("⚡ " + getHostNickname(detectedManagerHost) + " 켜기");
+                    Toast.makeText(MainActivity.this, "서버 시작 지연 중입니다. 잠시 후 새로고침하세요.", Toast.LENGTH_LONG).show();
+                }
+            });
+        }).start();
+    }
+
+    // 서버 선택 다이얼로그 (노트북 / 데스크톱 / 자동 탐색 / 직접 입력)
+    private void showServerSettingsDialog() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        boolean autoDiscovery = prefs.getBoolean(PREF_KEY_AUTO_MODE, true);
+        String currentIp = prefs.getString(PREF_KEY_SERVER_IP, DEFAULT_LAPTOP_IP);
+
+        String[] options = new String[]{
+                "💻 노트북 (" + DEFAULT_LAPTOP_IP + ")",
+                "🖥️ 데스크톱 (" + DEFAULT_DESKTOP_IP + ")",
+                "🔄 자동 탐색 (켜진 서버 자동 연결)",
+                "✏️ 직접 IP 입력..."
+        };
+
+        int selectedIndex = 2; // 기본값: 자동 탐색
+        if (!autoDiscovery) {
+            if (DEFAULT_LAPTOP_IP.equals(currentIp)) selectedIndex = 0;
+            else if (DEFAULT_DESKTOP_IP.equals(currentIp)) selectedIndex = 1;
+            else selectedIndex = 3;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("음악 서버 선택")
+                .setSingleChoiceItems(options, selectedIndex, (dialog, which) -> {
+                    dialog.dismiss();
+                    if (which == 0) {
+                        prefs.edit().putBoolean(PREF_KEY_AUTO_MODE, false).putString(PREF_KEY_SERVER_IP, DEFAULT_LAPTOP_IP).apply();
+                        Toast.makeText(this, "노트북 서버로 설정됨", Toast.LENGTH_SHORT).show();
+                        switchTab(false);
+                        loadSongs();
+                    } else if (which == 1) {
+                        prefs.edit().putBoolean(PREF_KEY_AUTO_MODE, false).putString(PREF_KEY_SERVER_IP, DEFAULT_DESKTOP_IP).apply();
+                        Toast.makeText(this, "데스크톱 서버로 설정됨", Toast.LENGTH_SHORT).show();
+                        switchTab(false);
+                        loadSongs();
+                    } else if (which == 2) {
+                        prefs.edit().putBoolean(PREF_KEY_AUTO_MODE, true).apply();
+                        Toast.makeText(this, "자동 탐색 모드로 설정됨", Toast.LENGTH_SHORT).show();
+                        switchTab(false);
+                        loadSongs();
+                    } else if (which == 3) {
+                        showCustomIpInputDialog();
+                    }
+                })
+                .setNegativeButton("닫기", null)
+                .show();
+    }
+
+    private void showCustomIpInputDialog() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String currentIp = prefs.getString(PREF_KEY_SERVER_IP, DEFAULT_LAPTOP_IP);
+
+        EditText input = new EditText(this);
+        input.setText(currentIp);
+        input.setHint("예: 192.168.45.247");
+
+        new AlertDialog.Builder(this)
+                .setTitle("서버 IP 직접 입력")
+                .setView(input)
+                .setPositiveButton("저장 및 연결", (dialog, which) -> {
+                    String ip = input.getText().toString().trim();
+                    if (!ip.isEmpty()) {
+                        prefs.edit().putBoolean(PREF_KEY_AUTO_MODE, false).putString(PREF_KEY_SERVER_IP, ip).apply();
+                        Toast.makeText(this, "서버 IP가 " + ip + " 로 변경되었습니다.", Toast.LENGTH_SHORT).show();
+                        switchTab(false);
+                        loadSongs();
+                    }
+                })
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    private String getHostNickname(String host) {
+        if (DEFAULT_LAPTOP_IP.equals(host)) return "노트북";
+        if (DEFAULT_DESKTOP_IP.equals(host)) return "데스크톱";
+        return host;
+    }
+
+    private String getServerDisplayName(String url) {
+        String host = MusicApi.extractHost(url);
+        return getHostNickname(host) + " (" + host + ")";
     }
 
     // 선택한 음악 재생
@@ -463,7 +687,7 @@ public class MainActivity extends Activity {
         songAdapter.setPlayingSongId(selectedSong.getId());
 
         String streamUrl =
-                SERVER_URL
+                musicApi.getBaseUrl()
                         + "/api/songs/"
                         + selectedSong.getId()
                         + "/stream";
