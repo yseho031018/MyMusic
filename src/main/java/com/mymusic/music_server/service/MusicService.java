@@ -51,7 +51,8 @@ public class MusicService {
         }
     }
 
-    private final Path musicDir = Path.of("D:/Dev/seho/Project/music-server/music");
+    
+    private final Path musicDir = Path.of("music").toAbsolutePath().normalize();
     private final Path cacheDir = musicDir.resolve(".cache");
     private final Path coversDir = cacheDir.resolve("covers");
     private final Path metadataFile = cacheDir.resolve("metadata_cache.json");
