@@ -16,7 +16,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Enumeration;
 
-public class ServerManager extends JFrame {
+public class ServerManager {
 
     private static final int SERVER_PORT = 8080;
     private static final int CONTROL_PORT = 8088;
@@ -25,6 +25,7 @@ public class ServerManager extends JFrame {
     private final boolean isHeadless;
     private Process serverProcess = null;
     private HttpServer controlServer = null;
+    private JFrame window;
 
     private JLabel lblStatus;
     private JLabel lblIp;
@@ -58,7 +59,8 @@ public class ServerManager extends JFrame {
                     UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
                 } catch (Exception ignored) {
                 }
-                new ServerManager(false).setVisible(true);
+                ServerManager manager = new ServerManager(false);
+                manager.window.setVisible(true);
             });
         }
     }
@@ -67,16 +69,16 @@ public class ServerManager extends JFrame {
         this.isHeadless = headless;
 
         if (!isHeadless) {
-            setTitle("My Music Server Manager");
-            setSize(800, 580);
-            setMinimumSize(new Dimension(680, 480));
-            setLocationRelativeTo(null);
-            setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+            window = new JFrame("My Music Server Manager");
+            window.setSize(800, 580);
+            window.setMinimumSize(new Dimension(680, 480));
+            window.setLocationRelativeTo(null);
+            window.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
             initUI();
             initSystemTray();
 
-            addWindowListener(new WindowAdapter() {
+            window.addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowClosing(WindowEvent e) {
                     onCloseRequest();
@@ -214,7 +216,7 @@ public class ServerManager extends JFrame {
         mainPanel.add(headerCard, BorderLayout.NORTH);
         mainPanel.add(logCard, BorderLayout.CENTER);
 
-        setContentPane(mainPanel);
+        window.setContentPane(mainPanel);
     }
 
     private void initSystemTray() {
@@ -227,9 +229,9 @@ public class ServerManager extends JFrame {
             PopupMenu popup = new PopupMenu();
             MenuItem itemOpen = new MenuItem("매니저 열기");
             itemOpen.addActionListener(e -> {
-                setVisible(true);
-                setExtendedState(JFrame.NORMAL);
-                toFront();
+                window.setVisible(true);
+                window.setExtendedState(JFrame.NORMAL);
+                window.toFront();
             });
 
             MenuItem itemStart = new MenuItem("서버 시작");
@@ -251,9 +253,9 @@ public class ServerManager extends JFrame {
             trayIcon = new TrayIcon(image, "My Music Server", popup);
             trayIcon.setImageAutoSize(true);
             trayIcon.addActionListener(e -> {
-                setVisible(true);
-                setExtendedState(JFrame.NORMAL);
-                toFront();
+                window.setVisible(true);
+                window.setExtendedState(JFrame.NORMAL);
+                window.toFront();
             });
 
             tray.add(trayIcon);
@@ -462,7 +464,7 @@ public class ServerManager extends JFrame {
     private void onCloseRequest() {
         if (trayIcon != null) {
             int choice = JOptionPane.showOptionDialog(
-                    this,
+                    window,
                     "창을 닫으면 작업표시줄(트레이)에서 계속 실행됩니다.\n완전 종료하시겠습니까?",
                     "My Music Server Manager",
                     JOptionPane.YES_NO_CANCEL_OPTION,
@@ -473,7 +475,7 @@ public class ServerManager extends JFrame {
             );
 
             if (choice == 0) {
-                setVisible(false);
+                window.setVisible(false);
                 trayIcon.displayMessage("My Music Server", "백그라운드에서 실행 중입니다. 시계 옆 아이콘을 클릭하여 다시 열 수 있습니다.", TrayIcon.MessageType.INFO);
             } else if (choice == 1) {
                 exitApplication();

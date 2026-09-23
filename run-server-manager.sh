@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 cd "$(dirname "$0")"
 
 mkdir -p target/classes
@@ -9,4 +10,3 @@ echo "  My Music Server Manager (Linux Headless Daemon)"
 echo "  Remote Control Port: 8088"
 echo "=========================================================="
 java -cp target/classes tools.ServerManager --headless
-
