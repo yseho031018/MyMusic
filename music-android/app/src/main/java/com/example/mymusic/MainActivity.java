@@ -1,6 +1,7 @@
 package com.example.mymusic;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.os.Bundle;
@@ -28,9 +29,7 @@ import com.example.mymusic.db.MusicDatabase;
 import com.example.mymusic.model.Song;
 import com.example.mymusic.network.MusicApi;
 import com.example.mymusic.player.MusicPlayer;
-import android.app.AlertDialog;
 import android.content.SharedPreferences;
-import android.widget.EditText;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -45,13 +44,14 @@ public class MainActivity extends Activity {
     public static final String DEFAULT_DESKTOP_IP = "192.168.45.240";
     private static final List<String> CANDIDATE_IPS = Arrays.asList(DEFAULT_LAPTOP_IP, DEFAULT_DESKTOP_IP);
 
-    private static final String PREFS_NAME = "music_prefs";
-    private static final String PREF_KEY_SERVER_IP = "server_ip";
-    private static final String PREF_KEY_AUTO_MODE = "auto_server_discovery";
+    static final String PREFS_NAME = "music_prefs";
+    static final String PREF_KEY_SERVER_IP = "server_ip";
+    static final String PREF_KEY_AUTO_MODE = "auto_server_discovery";
+    private static final int REQUEST_SETTINGS = 1;
 
     private TextView txtStatus;
     private Button btnRemoteStart;
-    private Button btnServerSettings;
+    private Button btnSettings;
     private String detectedManagerHost = null;
 
     private TextView txtNowPlaying;
@@ -123,11 +123,12 @@ public class MainActivity extends Activity {
         // 상단 상태 및 목록
         txtStatus = findViewById(R.id.txtStatus);
         btnRemoteStart = findViewById(R.id.btnRemoteStart);
-        btnServerSettings = findViewById(R.id.btnServerSettings);
+        btnSettings = findViewById(R.id.btnSettings);
         recyclerSongs = findViewById(R.id.recyclerSongs);
 
         btnRemoteStart.setOnClickListener(v -> triggerRemoteStart());
-        btnServerSettings.setOnClickListener(v -> showServerSettingsDialog());
+        btnSettings.setOnClickListener(v ->
+                startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_SETTINGS));
 
         // 탭 버튼
         btnTabServer = findViewById(R.id.btnTabServer);
@@ -594,75 +595,13 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // 서버 선택 다이얼로그 (노트북 / 데스크톱 / 자동 탐색 / 직접 입력)
-    private void showServerSettingsDialog() {
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        boolean autoDiscovery = prefs.getBoolean(PREF_KEY_AUTO_MODE, true);
-        String currentIp = prefs.getString(PREF_KEY_SERVER_IP, DEFAULT_LAPTOP_IP);
-
-        String[] options = new String[]{
-                "💻 노트북 (" + DEFAULT_LAPTOP_IP + ")",
-                "🖥️ 데스크톱 (" + DEFAULT_DESKTOP_IP + ")",
-                "🔄 자동 탐색 (켜진 서버 자동 연결)",
-                "✏️ 직접 IP 입력..."
-        };
-
-        int selectedIndex = 2; // 기본값: 자동 탐색
-        if (!autoDiscovery) {
-            if (DEFAULT_LAPTOP_IP.equals(currentIp)) selectedIndex = 0;
-            else if (DEFAULT_DESKTOP_IP.equals(currentIp)) selectedIndex = 1;
-            else selectedIndex = 3;
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_SETTINGS && resultCode == RESULT_OK) {
+            switchTab(false);
+            loadSongs();
         }
-
-        new AlertDialog.Builder(this)
-                .setTitle("음악 서버 선택")
-                .setSingleChoiceItems(options, selectedIndex, (dialog, which) -> {
-                    dialog.dismiss();
-                    if (which == 0) {
-                        prefs.edit().putBoolean(PREF_KEY_AUTO_MODE, false).putString(PREF_KEY_SERVER_IP, DEFAULT_LAPTOP_IP).apply();
-                        Toast.makeText(this, "노트북 서버로 설정됨", Toast.LENGTH_SHORT).show();
-                        switchTab(false);
-                        loadSongs();
-                    } else if (which == 1) {
-                        prefs.edit().putBoolean(PREF_KEY_AUTO_MODE, false).putString(PREF_KEY_SERVER_IP, DEFAULT_DESKTOP_IP).apply();
-                        Toast.makeText(this, "데스크톱 서버로 설정됨", Toast.LENGTH_SHORT).show();
-                        switchTab(false);
-                        loadSongs();
-                    } else if (which == 2) {
-                        prefs.edit().putBoolean(PREF_KEY_AUTO_MODE, true).apply();
-                        Toast.makeText(this, "자동 탐색 모드로 설정됨", Toast.LENGTH_SHORT).show();
-                        switchTab(false);
-                        loadSongs();
-                    } else if (which == 3) {
-                        showCustomIpInputDialog();
-                    }
-                })
-                .setNegativeButton("닫기", null)
-                .show();
-    }
-
-    private void showCustomIpInputDialog() {
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        String currentIp = prefs.getString(PREF_KEY_SERVER_IP, DEFAULT_LAPTOP_IP);
-
-        EditText input = new EditText(this);
-        input.setText(currentIp);
-        input.setHint("예: 192.168.45.247");
-
-        new AlertDialog.Builder(this)
-                .setTitle("서버 IP 직접 입력")
-                .setView(input)
-                .setPositiveButton("저장 및 연결", (dialog, which) -> {
-                    String ip = input.getText().toString().trim();
-                    if (!ip.isEmpty()) {
-                        prefs.edit().putBoolean(PREF_KEY_AUTO_MODE, false).putString(PREF_KEY_SERVER_IP, ip).apply();
-                        Toast.makeText(this, "서버 IP가 " + ip + " 로 변경되었습니다.", Toast.LENGTH_SHORT).show();
-                        switchTab(false);
-                        loadSongs();
-                    }
-                })
-                .setNegativeButton("취소", null)
-                .show();
     }
 
     private String getHostNickname(String host) {
