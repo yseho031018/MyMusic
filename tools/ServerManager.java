@@ -301,7 +301,8 @@ public class ServerManager {
 
                 if (jarFile.exists()) {
                     log("JAR 파일 실행: " + jarFile.getAbsolutePath());
-                    pb = new ProcessBuilder("java", "-jar", jarFile.getAbsolutePath());
+                    // On Unix, ':' in an absolute path is treated as a classpath separator.
+                    pb = new ProcessBuilder("java", "-jar", jarFile.getPath());
                 } else {
                     log("Maven spring-boot:run 실행 (JAR 파일 미발견)...");
                     boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
