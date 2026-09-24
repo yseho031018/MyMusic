@@ -42,6 +42,10 @@ public final class AudioLevels implements TeeAudioProcessor.AudioBufferSink {
         return isFresh() ? kick : 0f;
     }
 
+    public static boolean hasRecentData() {
+        return isFresh();
+    }
+
     private static boolean isFresh() {
         return enabled && SystemClock.elapsedRealtime() - updatedAtMs < 350;
     }

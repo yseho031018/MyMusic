@@ -1,9 +1,12 @@
 package com.example.mymusic;
 
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -23,6 +26,7 @@ import com.example.mymusic.adapter.SongAdapter;
 import com.example.mymusic.lyrics.Lyrics;
 import com.example.mymusic.lyrics.LyricsRepository;
 import com.example.mymusic.network.MusicApi;
+import com.example.mymusic.player.AlbumAccent;
 import com.example.mymusic.player.AudioLevels;
 import com.example.mymusic.player.HorizontalWaveformView;
 import com.example.mymusic.player.MusicPlayer;
@@ -37,6 +41,7 @@ import java.util.concurrent.Future;
 public final class NowPlayingActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService lyricWorker = Executors.newSingleThreadExecutor();
+    private final ExecutorService paletteWorker = Executors.newSingleThreadExecutor();
     private MusicPlayer musicPlayer;
     private LyricsRepository lyricsRepository;
     private TurntableView turntable;
@@ -51,6 +56,9 @@ public final class NowPlayingActivity extends Activity {
     private int syncOffsetMs;
     private int captionGeneration;
     private Future<?> captionLoad;
+    private ValueAnimator accentTransition;
+    private int currentAccent = AlbumAccent.DEFAULT;
+    private int accentGeneration;
     private Lyrics captionLyrics = Lyrics.fromText("", "");
     private String trackKey = "";
 
@@ -90,6 +98,7 @@ public final class NowPlayingActivity extends Activity {
         caption = findViewById(R.id.nowPlayingCaption);
         captionNext = findViewById(R.id.nowPlayingCaptionNext);
         seekBar = findViewById(R.id.nowPlayingSeekBar);
+        applyAccent(currentAccent);
 
         findViewById(R.id.btnNowPlayingBack).setOnClickListener(v -> finish());
         captionContainer.setOnClickListener(v -> openLyrics());
@@ -157,6 +166,9 @@ public final class NowPlayingActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        accentGeneration++;
+        if (accentTransition != null) accentTransition.cancel();
+        paletteWorker.shutdownNow();
         cancelCaptionLoad();
         lyricWorker.shutdownNow();
         musicPlayer.release();
@@ -171,6 +183,7 @@ public final class NowPlayingActivity extends Activity {
             return;
         }
         trackKey = key;
+        int accentRequest = ++accentGeneration;
         cancelCaptionLoad();
         captionLyrics = Lyrics.fromText("", "");
         clearCaptionNeighbors();
@@ -178,6 +191,7 @@ public final class NowPlayingActivity extends Activity {
         if (item != null) showCaptionWaveform();
         syncOffsetMs = readSyncOffset();
         if (item == null) {
+            animateAccent(AlbumAccent.DEFAULT);
             title.setText("재생 중인 음악 없음");
             artist.setText("목록에서 음악을 재생해 주세요");
             turntable.setImageResource(R.drawable.ic_music_placeholder);
@@ -198,8 +212,11 @@ public final class NowPlayingActivity extends Activity {
                 Uri artwork = item.mediaMetadata.artworkUri;
                 MusicApi api = artwork != null && artwork.getScheme() != null && artwork.getAuthority() != null
                         ? new MusicApi(artwork.getScheme() + "://" + artwork.getAuthority()) : null;
-                SongAdapter.loadCover(api, getFilesDir(), songId, turntable);
-            } catch (NumberFormatException ignored) {}
+                SongAdapter.loadCover(api, getFilesDir(), songId, turntable,
+                        cover -> onCoverLoaded(cover, accentRequest));
+            } catch (NumberFormatException ignored) {
+                animateAccent(AlbumAccent.DEFAULT);
+            }
         }
         updatePlaybackState();
         updateProgress();
@@ -243,7 +260,7 @@ public final class NowPlayingActivity extends Activity {
     private void updateCaptionVisibility() {
         boolean hasTrack = musicPlayer != null && musicPlayer.getCurrentMediaItem() != null;
         captionContainer.setVisibility(captionsEnabled && hasTrack ? View.VISIBLE : View.GONE);
-        captionButton.setTextColor(captionsEnabled ? 0xFFDCC5FF : 0xFF8C8798);
+        captionButton.setTextColor(captionsEnabled ? currentAccent : 0xFF8C8798);
         captionButton.setContentDescription(captionsEnabled ? "싱크 자막 끄기" : "싱크 자막 켜기");
         if (!captionsEnabled) {
             caption.setText("");
@@ -339,6 +356,45 @@ public final class NowPlayingActivity extends Activity {
                     0, 0, captionContainer.getWidth(), captionContainer.getHeight());
             startActivity(new Intent(this, LyricsActivity.class), expansion.toBundle());
         }
+    }
+
+    private void onCoverLoaded(Bitmap cover, int request) {
+        if (request != accentGeneration || isFinishing() || isDestroyed()) return;
+        if (cover == null) {
+            animateAccent(AlbumAccent.DEFAULT);
+            return;
+        }
+        paletteWorker.execute(() -> {
+            int accent;
+            try { accent = AlbumAccent.fromCover(cover); }
+            catch (RuntimeException ignored) { accent = AlbumAccent.DEFAULT; }
+            int extracted = accent;
+            runOnUiThread(() -> {
+                if (request == accentGeneration && !isFinishing() && !isDestroyed()) {
+                    animateAccent(extracted);
+                }
+            });
+        });
+    }
+
+    private void animateAccent(int target) {
+        if (accentTransition != null) accentTransition.cancel();
+        if (target == currentAccent) return;
+        accentTransition = ValueAnimator.ofArgb(currentAccent, target);
+        accentTransition.setDuration(1100);
+        accentTransition.addUpdateListener(animation -> applyAccent((int) animation.getAnimatedValue()));
+        accentTransition.start();
+    }
+
+    private void applyAccent(int color) {
+        currentAccent = color;
+        turntable.setAccentColor(color);
+        captionWaveform.setAccentColor(color);
+        playPause.getBackground().mutate().setTint(color);
+        seekBar.setProgressTintList(ColorStateList.valueOf(color));
+        seekBar.setThumbTintList(ColorStateList.valueOf(color));
+        caption.setTextColor(color);
+        if (captionsEnabled) captionButton.setTextColor(color);
     }
 
     private static String formatTime(long milliseconds) {

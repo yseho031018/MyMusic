@@ -27,14 +27,19 @@ import java.util.concurrent.Executors;
 
 public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder> {
 
+    public interface CoverLoadListener {
+        /** Called on the main thread with the cover, or null when none is available. */
+        void onCoverLoaded(Bitmap bitmap);
+    }
+
     public interface OnItemClickListener {
         void onItemClick(int position, Song song);
     }
 
     private static final int CACHE_SIZE = (int) (Runtime.getRuntime().maxMemory() / 1024) / 8;
-    private static final LruCache<Integer, Bitmap> COVER_CACHE = new LruCache<Integer, Bitmap>(Math.max(CACHE_SIZE, 1024)) {
+    private static final LruCache<String, Bitmap> COVER_CACHE = new LruCache<String, Bitmap>(Math.max(CACHE_SIZE, 1024)) {
         @Override
-        protected int sizeOf(Integer key, Bitmap bitmap) {
+        protected int sizeOf(String key, Bitmap bitmap) {
             return bitmap.getByteCount() / 1024;
         }
     };
@@ -82,22 +87,30 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
     }
 
     public static Bitmap getCachedCover(int songId) {
-        return COVER_CACHE.get(songId);
+        return COVER_CACHE.get(coverKey(null, songId));
     }
 
     public static void putCachedCover(int songId, Bitmap bitmap) {
         if (bitmap != null) {
-            COVER_CACHE.put(songId, bitmap);
+            COVER_CACHE.put(coverKey(null, songId), bitmap);
         }
     }
 
     public static void loadCover(MusicApi musicApi, File filesDir, int songId, ImageView targetView) {
+        loadCover(musicApi, filesDir, songId, targetView, null);
+    }
+
+    public static void loadCover(MusicApi musicApi, File filesDir, int songId, ImageView targetView,
+                                 CoverLoadListener listener) {
         if (targetView == null) return;
 
-        targetView.setTag(songId);
-        Bitmap cached = COVER_CACHE.get(songId);
+        Object requestTag = new Object();
+        targetView.setTag(requestTag);
+        String cacheKey = coverKey(musicApi, songId);
+        Bitmap cached = COVER_CACHE.get(cacheKey);
         if (cached != null) {
             targetView.setImageBitmap(cached);
+            if (listener != null) listener.onCoverLoaded(cached);
             return;
         }
 
@@ -119,17 +132,18 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
                 bitmap = extractCoverFromLocalFile(filesDir, songId);
             }
 
-            if (bitmap != null) {
-                COVER_CACHE.put(songId, bitmap);
-                final Bitmap finalBitmap = bitmap;
-                MAIN_HANDLER.post(() -> {
-                    Object tag = targetView.getTag();
-                    if (tag instanceof Integer && (Integer) tag == songId) {
-                        targetView.setImageBitmap(finalBitmap);
-                    }
-                });
-            }
+            if (bitmap != null) COVER_CACHE.put(cacheKey, bitmap);
+            final Bitmap finalBitmap = bitmap;
+            MAIN_HANDLER.post(() -> {
+                if (targetView.getTag() != requestTag) return;
+                if (finalBitmap != null) targetView.setImageBitmap(finalBitmap);
+                if (listener != null) listener.onCoverLoaded(finalBitmap);
+            });
         });
+    }
+
+    private static String coverKey(MusicApi musicApi, int songId) {
+        return (musicApi == null ? "local" : musicApi.getBaseUrl()) + "|" + songId;
     }
 
     private static Bitmap extractCoverFromLocalFile(File filesDir, int songId) {

@@ -2,6 +2,7 @@ package com.example.mymusic.player;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.os.SystemClock;
@@ -17,6 +18,7 @@ public final class HorizontalWaveformView extends View {
     private float shownLevel;
     private float phase;
     private long lastFrameTime;
+    private int accentColor = AlbumAccent.DEFAULT;
 
     public HorizontalWaveformView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -30,6 +32,12 @@ public final class HorizontalWaveformView extends View {
     public void setAnimationsEnabled(boolean enabled) {
         animationsEnabled = enabled;
         lastFrameTime = 0;
+        invalidate();
+    }
+
+    public void setAccentColor(int color) {
+        if (accentColor == color) return;
+        accentColor = color;
         invalidate();
     }
 
@@ -55,7 +63,8 @@ public final class HorizontalWaveformView extends View {
         paint.setStrokeCap(Paint.Cap.ROUND);
         paint.setStrokeJoin(Paint.Join.ROUND);
         paint.setStrokeWidth(1f * density);
-        paint.setColor(0x665E4D76);
+        paint.setColor(Color.argb(65, Color.red(accentColor),
+                Color.green(accentColor), Color.blue(accentColor)));
         canvas.drawLine(left, middle, right, middle, paint);
 
         wave.reset();
@@ -71,7 +80,7 @@ public final class HorizontalWaveformView extends View {
             if (i == 0) wave.moveTo(x, y); else wave.lineTo(x, y);
         }
         paint.setStrokeWidth(2f * density);
-        paint.setColor(0xFFCDB8F6);
+        paint.setColor(accentColor);
         canvas.drawPath(wave, paint);
 
         if (animationsEnabled && isShown() && (playing || shownLevel > .01f)) {

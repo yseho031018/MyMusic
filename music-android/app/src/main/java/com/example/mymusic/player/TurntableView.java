@@ -22,6 +22,9 @@ public final class TurntableView extends AppCompatImageView {
     private final RadialGradient vinylShader = new RadialGradient(378, 390, 680,
             new int[]{0xFF303039, 0xFF111116, 0xFF35343C, 0xFF101014},
             new float[]{0f, .38f, .74f, 1f}, Shader.TileMode.CLAMP);
+    private RadialGradient glowShader;
+    private int glowShaderColor;
+    private int accentColor = AlbumAccent.DEFAULT;
     private boolean hasTrack;
     private boolean playing;
     private boolean animationsEnabled;
@@ -33,6 +36,7 @@ public final class TurntableView extends AppCompatImageView {
     private float shownBass;
     private float shownEnergy;
     private float shownKick;
+    private float shownAudioAvailable;
     private long lastFrameTime;
 
     public TurntableView(Context context, AttributeSet attrs) {
@@ -57,6 +61,12 @@ public final class TurntableView extends AppCompatImageView {
         invalidate();
     }
 
+    public void setAccentColor(int color) {
+        if (accentColor == color) return;
+        accentColor = color;
+        invalidate();
+    }
+
     @Override protected void onDraw(Canvas canvas) {
         long now = SystemClock.uptimeMillis();
         long elapsed = lastFrameTime == 0 ? 0 : Math.min(64, Math.max(0, now - lastFrameTime));
@@ -69,6 +79,8 @@ public final class TurntableView extends AppCompatImageView {
             shownBass += ((playing ? AudioLevels.bass() : 0f) - shownBass) * audioStep;
             shownEnergy += ((playing ? AudioLevels.energy() : 0f) - shownEnergy) * audioStep;
             shownKick += ((playing ? AudioLevels.kick() : 0f) - shownKick) * audioStep;
+            shownAudioAvailable += ((playing && AudioLevels.hasRecentData() ? 1f : 0f)
+                    - shownAudioAvailable) * Math.min(1f, elapsed / 220f);
             if (playing) {
                 rotation = (rotation + elapsed * 0.2f) % 360f; // 33⅓ RPM
                 wavePhase += elapsed * 0.0045f;
@@ -81,6 +93,7 @@ public final class TurntableView extends AppCompatImageView {
         canvas.translate((getWidth() - size) / 2f, (getHeight() - size) / 2f);
         canvas.scale(size / 1000f, size / 1000f);
         drawDeck(canvas);
+        drawGlow(canvas);
         drawWave(canvas);
         drawRecord(canvas);
         drawNeedle(canvas);
@@ -108,14 +121,34 @@ public final class TurntableView extends AppCompatImageView {
         paint.setStyle(Paint.Style.FILL);
         paint.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         paint.setTextSize(26);
-        paint.setColor(0xFFCDB8F6);
+        paint.setColor(accentColor);
         canvas.drawText("MY MUSIC", 68, 92, paint);
         paint.setTextSize(21);
         paint.setColor(0xFF92909E);
         canvas.drawText("33⅓ RPM   ·   SIDE A", 68, 940, paint);
 
-        paint.setColor(playing ? 0xFFD2B8FF : 0xFF6A6673);
+        paint.setColor(playing ? accentColor : 0xFF6A6673);
         canvas.drawCircle(920, 88, 7, paint);
+    }
+
+    private void drawGlow(Canvas canvas) {
+        if (glowShader == null || glowShaderColor != accentColor) {
+            int red = Color.red(accentColor);
+            int green = Color.green(accentColor);
+            int blue = Color.blue(accentColor);
+            glowShader = new RadialGradient(463, 520, 490,
+                    new int[]{Color.argb(34, red, green, blue),
+                            Color.argb(64, red, green, blue), Color.TRANSPARENT},
+                    new float[]{0f, .71f, 1f}, Shader.TileMode.CLAMP);
+            glowShaderColor = accentColor;
+        }
+        paint.setStyle(Paint.Style.FILL);
+        paint.setShader(glowShader);
+        paint.setAlpha((int) (120 + waveStrength * 35
+                + shownAudioAvailable * (shownEnergy * 30 + shownKick * 20)));
+        canvas.drawCircle(463, 520, 490, paint);
+        paint.setShader(null);
+        paint.setAlpha(255);
     }
 
     private void drawWave(Canvas canvas) {
@@ -125,17 +158,21 @@ public final class TurntableView extends AppCompatImageView {
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeCap(Paint.Cap.ROUND);
         paint.setStrokeWidth(4);
-        paint.setColor(0xFF514365);
+        int red = Color.red(accentColor);
+        int green = Color.green(accentColor);
+        int blue = Color.blue(accentColor);
+        paint.setColor(Color.argb(95, red, green, blue));
         canvas.drawCircle(centerX, centerY, 368, paint);
         for (int i = 0; i < 90; i++) {
             double angle = i * Math.PI * 2 / 90;
             float rhythm = (float) (0.45 + 0.55 * Math.abs(Math.sin(i * .57 + wavePhase)
                     * Math.cos(i * .19 - wavePhase * .7)));
-            float intensity = .18f + shownBass * .55f + shownEnergy * .35f + shownKick * .55f;
-            float length = 5 + waveStrength * (5 + 38 * intensity * rhythm);
+            float intensity = Math.min(1f, shownBass * .45f + shownEnergy * .35f + shownKick * .45f);
+            float length = 5 + waveStrength * (5 + 34 * shownAudioAvailable * intensity * rhythm);
             float inner = 379;
             float outer = inner + length;
-            paint.setColor(Color.argb((int) (65 + waveStrength * (100 + shownKick * 70)), 203, 174, 255));
+            paint.setColor(Color.argb((int) (65 + waveStrength * (70
+                    + 100 * shownAudioAvailable * intensity)), red, green, blue));
             canvas.drawLine(centerX + (float) Math.cos(angle) * inner,
                     centerY + (float) Math.sin(angle) * inner,
                     centerX + (float) Math.cos(angle) * outer,
