@@ -24,6 +24,9 @@
         <activity
             android:name=".LyricsActivity"
             android:exported="false" />
+        <activity
+            android:name=".NowPlayingActivity"
+            android:exported="false" />
         <!-- Android media controls connect to this session from outside the app. -->
         <service
             android:name=".player.PlaybackService"

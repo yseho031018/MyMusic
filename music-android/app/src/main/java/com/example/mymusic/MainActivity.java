@@ -149,7 +149,7 @@ public class MainActivity extends Activity {
         imgCover = findViewById(R.id.imgCover);
         findViewById(R.id.nowPlayingCard).setOnClickListener(v -> {
             if (musicPlayer.getCurrentMediaItem() != null) {
-                startActivity(new Intent(this, LyricsActivity.class));
+                startActivity(new Intent(this, NowPlayingActivity.class));
             } else {
                 Toast.makeText(this, "먼저 음악을 재생해 주세요.", Toast.LENGTH_SHORT).show();
             }
