@@ -147,6 +147,13 @@ public class MainActivity extends Activity {
         txtNowPlaying = findViewById(R.id.txtNowPlaying);
         txtArtist = findViewById(R.id.txtArtist);
         imgCover = findViewById(R.id.imgCover);
+        findViewById(R.id.nowPlayingCard).setOnClickListener(v -> {
+            if (musicPlayer.getCurrentMediaItem() != null) {
+                startActivity(new Intent(this, LyricsActivity.class));
+            } else {
+                Toast.makeText(this, "먼저 음악을 재생해 주세요.", Toast.LENGTH_SHORT).show();
+            }
+        });
 
         txtCurrentTime = findViewById(R.id.txtCurrentTime);
         txtDuration = findViewById(R.id.txtDuration);

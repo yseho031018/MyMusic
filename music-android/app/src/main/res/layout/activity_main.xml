@@ -108,10 +108,14 @@
 
     <!-- 현재 재생 중인 음악 정보 및 앨범 커버 -->
     <LinearLayout
+        android:id="@+id/nowPlayingCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="현재 곡 가사 보기"
         android:layout_marginTop="16dp">
 
         <androidx.cardview.widget.CardView
@@ -157,6 +161,14 @@
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:layout_marginTop="4dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:text="가사 보기  ›"
+                android:textColor="#CBAEFF"
+                android:textSize="12sp" />
 
         </LinearLayout>
 
