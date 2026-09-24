@@ -46,6 +46,7 @@ public final class NowPlayingActivity extends Activity {
     private LyricsRepository lyricsRepository;
     private TurntableView turntable;
     private TextView title, artist, positionText, durationText, playPause, previous, next;
+    private TextView backButton, headerTitle;
     private TextView captionButton, caption, captionPrevious, captionNext;
     private View captionContainer, captionLines;
     private HorizontalWaveformView captionWaveform;
@@ -83,6 +84,8 @@ public final class NowPlayingActivity extends Activity {
         getWindow().setNavigationBarColor(0xFF16161D);
 
         turntable = findViewById(R.id.turntable);
+        backButton = findViewById(R.id.btnNowPlayingBack);
+        headerTitle = findViewById(R.id.nowPlayingHeaderTitle);
         title = findViewById(R.id.nowPlayingTitle);
         artist = findViewById(R.id.nowPlayingArtist);
         positionText = findViewById(R.id.nowPlayingPosition);
@@ -100,7 +103,7 @@ public final class NowPlayingActivity extends Activity {
         seekBar = findViewById(R.id.nowPlayingSeekBar);
         applyAccent(currentAccent);
 
-        findViewById(R.id.btnNowPlayingBack).setOnClickListener(v -> finish());
+        backButton.setOnClickListener(v -> finish());
         captionContainer.setOnClickListener(v -> openLyrics());
         captionsEnabled = getPreferences(MODE_PRIVATE).getBoolean("synced_caption", false);
         captionButton.setOnClickListener(v -> {
@@ -395,6 +398,8 @@ public final class NowPlayingActivity extends Activity {
         seekBar.setProgressTintList(ColorStateList.valueOf(color));
         seekBar.setThumbTintList(ColorStateList.valueOf(color));
         caption.setTextColor(color);
+        backButton.setTextColor(color);
+        headerTitle.setTextColor(color);
         if (captionsEnabled) captionButton.setTextColor(color);
     }
 
