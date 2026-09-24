@@ -149,7 +149,7 @@ public class MainActivity extends Activity {
         imgCover = findViewById(R.id.imgCover);
         findViewById(R.id.nowPlayingCard).setOnClickListener(v -> {
             if (musicPlayer.getCurrentMediaItem() != null) {
-                startActivity(new Intent(this, NowPlayingActivity.class));
+                openNowPlaying();
             } else {
                 Toast.makeText(this, "먼저 음악을 재생해 주세요.", Toast.LENGTH_SHORT).show();
             }
@@ -206,6 +206,7 @@ public class MainActivity extends Activity {
                 musicPlayer.pause();
             } else {
                 musicPlayer.resume();
+                openNowPlaying();
             }
 
             updatePlayPauseButton();
@@ -660,6 +661,11 @@ public class MainActivity extends Activity {
 
         // 현재 재생 곡 위치로 목록 부드럽게 스크롤
         recyclerSongs.smoothScrollToPosition(index);
+        openNowPlaying();
+    }
+
+    private void openNowPlaying() {
+        startActivity(new Intent(this, NowPlayingActivity.class));
     }
 
     private void restoreCurrentPlayback() {

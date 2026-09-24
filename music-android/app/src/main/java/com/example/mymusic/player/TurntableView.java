@@ -54,7 +54,7 @@ public final class TurntableView extends AppCompatImageView {
         lastFrameTime = now;
         if (animationsEnabled && elapsed > 0) {
             float step = Math.min(1f, elapsed / 320f);
-            needlePosition += ((hasTrack ? 1f : 0f) - needlePosition) * step;
+            needlePosition += ((playing ? 1f : 0f) - needlePosition) * step;
             waveStrength += ((playing ? 1f : 0f) - waveStrength) * step;
             if (playing) {
                 rotation = (rotation + elapsed * 0.2f) % 360f; // 33⅓ RPM
@@ -73,7 +73,7 @@ public final class TurntableView extends AppCompatImageView {
         drawNeedle(canvas);
         canvas.restore();
 
-        if (animationsEnabled && (playing || Math.abs(needlePosition - (hasTrack ? 1f : 0f)) > .005f
+        if (animationsEnabled && (playing || Math.abs(needlePosition - (playing ? 1f : 0f)) > .005f
                 || waveStrength > .005f && !playing)) {
             postInvalidateOnAnimation();
         }
