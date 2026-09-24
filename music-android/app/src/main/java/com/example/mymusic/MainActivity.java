@@ -19,6 +19,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.media3.common.C;
+import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -202,7 +203,7 @@ public class MainActivity extends Activity {
 
         // 재생 / 일시정지
         btnPlayPause.setOnClickListener(v -> {
-            if (currentSongIndex == -1) {
+            if (musicPlayer.getCurrentMediaItem() == null) {
                 return;
             }
 
@@ -257,6 +258,11 @@ public class MainActivity extends Activity {
         // ExoPlayer 상태 변경 감지
         musicPlayer.addListener(new Player.Listener() {
             @Override
+            public void onMediaItemTransition(MediaItem mediaItem, int reason) {
+                restoreCurrentPlayback();
+            }
+
+            @Override
             public void onIsPlayingChanged(boolean isPlaying) {
                 updatePlayPauseButton();
             }
@@ -276,6 +282,7 @@ public class MainActivity extends Activity {
                 }
             }
         });
+        musicPlayer.setOnConnectedListener(this::restoreCurrentPlayback);
 
         // 재생 위치 업데이트 시작
         handler.post(updateProgress);
@@ -437,6 +444,7 @@ public class MainActivity extends Activity {
         }
         updateNavigationButtons();
         songAdapter.setSongs(songs);
+        restoreCurrentPlayback();
     }
 
     // 1. 서버에서 음악 목록 불러오기 (다중 IP 자동 감지 & 원격 매니저 탐색)
@@ -459,6 +467,7 @@ public class MainActivity extends Activity {
                             songs = new ArrayList<>(serverSongs);
                             songAdapter.setSongs(songs);
                             txtStatus.setText(getServerDisplayName(activeUrl) + " (" + songs.size() + "곡)");
+                            restoreCurrentPlayback();
                         }
                     });
                     return;
@@ -630,6 +639,8 @@ public class MainActivity extends Activity {
                         + "/api/songs/"
                         + selectedSong.getId()
                         + "/stream";
+        String coverUrl = musicApi.getBaseUrl() + "/api/songs/"
+                + selectedSong.getId() + "/cover";
 
         // 스마트폰에 저장된 음악 파일 확인
         File localFile = new File(
@@ -639,11 +650,13 @@ public class MainActivity extends Activity {
 
         if (localFile.exists()) {
             // 다운로드한 음악이 있으면 로컬 재생
-            musicPlayer.playLocal(localFile, selectedSong.getTitle(), selectedSong.getArtist());
+            musicPlayer.playLocal(localFile, selectedSong.getId(), selectedSong.getTitle(),
+                    selectedSong.getArtist(), coverUrl);
             txtStatus.setText("오프라인 재생");
         } else {
             // 다운로드한 음악이 없으면 서버 스트리밍
-            musicPlayer.play(streamUrl, selectedSong.getTitle(), selectedSong.getArtist());
+            musicPlayer.play(streamUrl, selectedSong.getId(), selectedSong.getTitle(),
+                    selectedSong.getArtist(), coverUrl);
             txtStatus.setText("서버 스트리밍");
         }
 
@@ -657,11 +670,40 @@ public class MainActivity extends Activity {
         txtCurrentTime.setText("0:00");
         txtDuration.setText("0:00");
 
-        setControlsEnabled(true);
+        setControlsEnabled(musicPlayer.isConnected());
         updatePlayPauseButton();
 
         // 현재 재생 곡 위치로 목록 부드럽게 스크롤
         recyclerSongs.smoothScrollToPosition(index);
+    }
+
+    private void restoreCurrentPlayback() {
+        MediaItem item = musicPlayer.getCurrentMediaItem();
+        if (item == null) return;
+
+        if (item.mediaMetadata.title != null) {
+            txtNowPlaying.setText(item.mediaMetadata.title);
+        }
+        if (item.mediaMetadata.artist != null) {
+            txtArtist.setText(item.mediaMetadata.artist);
+        }
+
+        currentSongIndex = -1;
+        try {
+            int songId = Integer.parseInt(item.mediaId);
+            songAdapter.setPlayingSongId(songId);
+            for (int i = 0; i < songs.size(); i++) {
+                if (songs.get(i).getId() == songId) {
+                    currentSongIndex = i;
+                    break;
+                }
+            }
+            SongAdapter.loadCover(musicApi, getFilesDir(), songId, imgCover);
+        } catch (NumberFormatException ignored) {
+        }
+        setControlsEnabled(true);
+        updatePlayPauseButton();
+        updateSeekBar();
     }
 
     // 재생 컨트롤러 활성화
@@ -689,7 +731,7 @@ public class MainActivity extends Activity {
 
     // 재생 위치와 전체 시간 업데이트
     private void updateSeekBar() {
-        if (currentSongIndex == -1) {
+        if (musicPlayer.getCurrentMediaItem() == null) {
             return;
         }
 

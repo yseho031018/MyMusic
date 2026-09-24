@@ -1,122 +1,136 @@
 package com.example.mymusic.player;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
-import androidx.media3.common.AudioAttributes;
+import androidx.core.content.ContextCompat;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
-import androidx.media3.exoplayer.ExoPlayer;
-import androidx.media3.session.MediaSession;
+import androidx.media3.session.MediaController;
+import androidx.media3.session.SessionToken;
+
+import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MusicPlayer {
 
-    private final ExoPlayer player;
-    private final MediaSession mediaSession;
+    private final ListenableFuture<MediaController> controllerFuture;
+    private final List<Player.Listener> listeners = new ArrayList<>();
+    private MediaController controller;
+    private MediaItem pendingItem;
+    private Runnable onConnected;
+    private boolean released;
 
     public MusicPlayer(Context context) {
+        Context appContext = context.getApplicationContext();
+        SessionToken token = new SessionToken(appContext,
+                new ComponentName(appContext, PlaybackService.class));
+        controllerFuture = new MediaController.Builder(appContext, token).buildAsync();
+        controllerFuture.addListener(() -> {
+            if (released) return;
+            try {
+                controller = controllerFuture.get();
+                for (Player.Listener listener : listeners) {
+                    controller.addListener(listener);
+                }
+                if (pendingItem != null) {
+                    startItem(pendingItem);
+                    pendingItem = null;
+                }
+                if (onConnected != null) onConnected.run();
+            } catch (Exception e) {
+                Log.e("MusicPlayer", "Playback service connection failed", e);
+            }
+        }, ContextCompat.getMainExecutor(appContext));
+    }
 
-        // 1. 오디오 포커스 자동 처리 (전화 올 때 음악 정지, 안내 음성 시 볼륨 줄임)
-        AudioAttributes audioAttributes = new AudioAttributes.Builder()
-                .setUsage(C.USAGE_MEDIA)
-                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+    public void setOnConnectedListener(Runnable listener) {
+        onConnected = listener;
+        if (controller != null && listener != null) listener.run();
+    }
+
+    public boolean isConnected() {
+        return controller != null;
+    }
+
+    public void play(String url, int id, String title, String artist, String artworkUrl) {
+        playItem(Uri.parse(url), id, title, artist, artworkUrl);
+    }
+
+    public void playLocal(File file, int id, String title, String artist, String artworkUrl) {
+        playItem(Uri.fromFile(file), id, title, artist, artworkUrl);
+    }
+
+    private void playItem(Uri uri, int id, String title, String artist, String artworkUrl) {
+        MediaMetadata.Builder metadata = new MediaMetadata.Builder();
+        if (title != null) metadata.setTitle(title);
+        if (artist != null) metadata.setArtist(artist);
+        if (artworkUrl != null) metadata.setArtworkUri(Uri.parse(artworkUrl));
+
+        MediaItem item = new MediaItem.Builder()
+                .setMediaId(String.valueOf(id))
+                .setUri(uri)
+                .setMediaMetadata(metadata.build())
                 .build();
-
-        player = new ExoPlayer.Builder(context)
-                .setAudioAttributes(audioAttributes, true)
-                .build();
-
-        // 2. 미디어 세션 연결 (이어폰 버튼, 블루투스 리모컨, 스마트워치 연동)
-        mediaSession = new MediaSession.Builder(context, player).build();
-    }
-
-    // 새로운 음악 재생 (메타데이터 포함)
-    public void play(String url, String title, String artist) {
-
-        MediaMetadata.Builder metaBuilder = new MediaMetadata.Builder();
-        if (title != null) metaBuilder.setTitle(title);
-        if (artist != null) metaBuilder.setArtist(artist);
-
-        MediaItem mediaItem = new MediaItem.Builder()
-                .setUri(url)
-                .setMediaMetadata(metaBuilder.build())
-                .build();
-
-        player.setMediaItem(mediaItem);
-        player.prepare();
-        player.play();
-    }
-
-    public void play(String url) {
-        play(url, null, null);
-    }
-
-    // 일시정지
-    public void pause() {
-        player.pause();
-    }
-
-    // 일시정지한 음악 다시 재생
-    public void resume() {
-        player.play();
-    }
-
-    // 현재 재생 중인지 확인
-    public boolean isPlaying() {
-        return player.isPlaying();
-    }
-
-    // 현재 재생 위치 (밀리초)
-    public long getCurrentPosition() {
-        return player.getCurrentPosition();
-    }
-
-    // 음악 전체 길이 (밀리초)
-    public long getDuration() {
-        return player.getDuration();
-    }
-
-    // 원하는 위치로 이동
-    public void seekTo(long position) {
-        player.seekTo(position);
-    }
-
-    // 재생 상태 변경 감지
-    public void addListener(Player.Listener listener) {
-        player.addListener(listener);
-    }
-
-    // 플레이어 및 세션 종료
-    public void release() {
-        if (mediaSession != null) {
-            mediaSession.release();
+        if (controller == null) {
+            pendingItem = item;
+        } else {
+            startItem(item);
         }
-        player.release();
     }
 
-    // 로컬 파일 재생 (메타데이터 포함)
-    public void playLocal(File file, String title, String artist) {
-
-        MediaMetadata.Builder metaBuilder = new MediaMetadata.Builder();
-        if (title != null) metaBuilder.setTitle(title);
-        if (artist != null) metaBuilder.setArtist(artist);
-
-        MediaItem mediaItem = new MediaItem.Builder()
-                .setUri(Uri.fromFile(file))
-                .setMediaMetadata(metaBuilder.build())
-                .build();
-
-        player.setMediaItem(mediaItem);
-        player.prepare();
-        player.play();
+    private void startItem(MediaItem item) {
+        controller.setMediaItem(item);
+        controller.prepare();
+        controller.play();
     }
 
-    public void playLocal(File file) {
-        playLocal(file, null, null);
+    public void pause() {
+        if (controller != null) controller.pause();
     }
 
+    public void resume() {
+        if (controller != null) controller.play();
+    }
+
+    public boolean isPlaying() {
+        return controller != null && controller.isPlaying();
+    }
+
+    public long getCurrentPosition() {
+        return controller != null ? controller.getCurrentPosition() : 0;
+    }
+
+    public long getDuration() {
+        return controller != null ? controller.getDuration() : C.TIME_UNSET;
+    }
+
+    public MediaItem getCurrentMediaItem() {
+        return controller != null ? controller.getCurrentMediaItem() : null;
+    }
+
+    public void seekTo(long position) {
+        if (controller != null) controller.seekTo(position);
+    }
+
+    public void addListener(Player.Listener listener) {
+        listeners.add(listener);
+        if (controller != null) controller.addListener(listener);
+    }
+
+    public void release() {
+        released = true;
+        pendingItem = null;
+        onConnected = null;
+        listeners.clear();
+        MediaController.releaseFuture(controllerFuture);
+        controller = null;
+    }
 }
