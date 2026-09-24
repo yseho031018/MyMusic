@@ -1,6 +1,7 @@
 package com.example.mymusic;
 
 import android.app.Activity;
+import android.app.ActivityOptions;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -39,7 +40,7 @@ public final class NowPlayingActivity extends Activity {
     private LyricsRepository lyricsRepository;
     private TurntableView turntable;
     private TextView title, artist, positionText, durationText, playPause, previous, next;
-    private TextView lyricsButton, captionButton, caption, captionPrevious, captionNext;
+    private TextView captionButton, caption, captionPrevious, captionNext;
     private View captionContainer;
     private SeekBar seekBar;
     private boolean trackingSeek;
@@ -79,7 +80,6 @@ public final class NowPlayingActivity extends Activity {
         playPause = findViewById(R.id.nowPlayingPlayPause);
         previous = findViewById(R.id.nowPlayingPrevious);
         next = findViewById(R.id.nowPlayingNext);
-        lyricsButton = findViewById(R.id.btnNowPlayingLyrics);
         captionButton = findViewById(R.id.btnNowPlayingCaption);
         captionContainer = findViewById(R.id.nowPlayingCaptionContainer);
         captionPrevious = findViewById(R.id.nowPlayingCaptionPrevious);
@@ -88,7 +88,7 @@ public final class NowPlayingActivity extends Activity {
         seekBar = findViewById(R.id.nowPlayingSeekBar);
 
         findViewById(R.id.btnNowPlayingBack).setOnClickListener(v -> finish());
-        lyricsButton.setOnClickListener(v -> openLyrics());
+        captionContainer.setOnClickListener(v -> openLyrics());
         captionsEnabled = getPreferences(MODE_PRIVATE).getBoolean("synced_caption", false);
         captionButton.setOnClickListener(v -> {
             captionsEnabled = !captionsEnabled;
@@ -208,8 +208,7 @@ public final class NowPlayingActivity extends Activity {
         playPause.setEnabled(hasTrack);
         playPause.setAlpha(hasTrack ? 1f : .45f);
         seekBar.setEnabled(hasTrack);
-        lyricsButton.setEnabled(hasTrack);
-        lyricsButton.setAlpha(hasTrack ? 1f : .45f);
+        captionContainer.setEnabled(hasTrack);
         captionButton.setEnabled(hasTrack);
         captionButton.setAlpha(hasTrack ? 1f : .45f);
         boolean canNavigate = musicPlayer.getMediaItemCount() > 1;
@@ -316,7 +315,9 @@ public final class NowPlayingActivity extends Activity {
 
     private void openLyrics() {
         if (musicPlayer.getCurrentMediaItem() != null) {
-            startActivity(new Intent(this, LyricsActivity.class));
+            ActivityOptions expansion = ActivityOptions.makeClipRevealAnimation(captionContainer,
+                    0, 0, captionContainer.getWidth(), captionContainer.getHeight());
+            startActivity(new Intent(this, LyricsActivity.class), expansion.toBundle());
         }
     }
 

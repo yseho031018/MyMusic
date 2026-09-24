@@ -58,6 +58,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:focusable="true"
         android:orientation="vertical"
         android:visibility="gone">
         <TextView
@@ -187,16 +189,4 @@
             android:textSize="21sp" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/btnNowPlayingLyrics"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="14dp"
-        android:background="@drawable/turntable_lyrics_button"
-        android:contentDescription="현재 곡 가사 보기"
-        android:gravity="center"
-        android:text="가사 보기  ↗"
-        android:textColor="#DFD2F4"
-        android:textSize="14sp" />
 </LinearLayout>
