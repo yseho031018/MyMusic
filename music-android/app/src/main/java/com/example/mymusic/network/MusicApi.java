@@ -118,6 +118,25 @@ public class MusicApi {
         return null;
     }
 
+    public List<Song> refreshMetadata() throws Exception {
+        HttpURLConnection connection = (HttpURLConnection)
+                new URL(baseUrl + "/api/songs/refresh").openConnection();
+        connection.setRequestMethod("POST");
+        connection.setConnectTimeout(5000);
+        // The server may search online metadata for every song.
+        connection.setReadTimeout(600000);
+        try {
+            int status = connection.getResponseCode();
+            if (status != 200) throw new Exception("서버 응답 오류: " + status);
+            try (InputStream ignored = connection.getInputStream()) {
+                // The endpoint has completed; fetch its updated song list below.
+            }
+        } finally {
+            connection.disconnect();
+        }
+        return getSongs();
+    }
+
     public File downloadSong(Context context, Song song)
             throws Exception {
 

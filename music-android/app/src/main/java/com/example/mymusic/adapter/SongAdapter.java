@@ -96,6 +96,10 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
         }
     }
 
+    public static void clearCoverCache() {
+        COVER_CACHE.evictAll();
+    }
+
     public static void loadCover(MusicApi musicApi, File filesDir, int songId, ImageView targetView) {
         loadCover(musicApi, filesDir, songId, targetView, null);
     }
@@ -103,6 +107,8 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
     public static void loadCover(MusicApi musicApi, File filesDir, int songId, ImageView targetView,
                                  CoverLoadListener listener) {
         if (targetView == null) return;
+
+        if (songId < 0) musicApi = null;
 
         Object requestTag = new Object();
         targetView.setTag(requestTag);
@@ -116,13 +122,14 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
 
         targetView.setImageResource(R.drawable.ic_music_placeholder);
 
+        MusicApi coverApi = musicApi;
         EXECUTOR.execute(() -> {
             Bitmap bitmap = null;
 
             // 1. 서버 API를 통해 커버 이미지 가져오기
-            if (musicApi != null) {
+            if (coverApi != null) {
                 try {
-                    bitmap = musicApi.getAlbumCoverBitmap(songId);
+                    bitmap = coverApi.getAlbumCoverBitmap(songId);
                 } catch (Exception ignored) {
                 }
             }

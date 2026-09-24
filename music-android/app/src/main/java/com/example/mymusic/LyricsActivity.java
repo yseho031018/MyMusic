@@ -228,6 +228,8 @@ public class LyricsActivity extends Activity {
             if (artwork != null && artwork.getScheme() != null && artwork.getAuthority() != null) {
                 String baseUrl = artwork.getScheme() + "://" + artwork.getAuthority();
                 SongAdapter.loadCover(new MusicApi(baseUrl), getFilesDir(), id, cover);
+            } else if (id < 0) {
+                SongAdapter.loadCover(null, getFilesDir(), id, cover);
             }
         } catch (NumberFormatException ignored) {}
         long duration = musicPlayer.getDuration();

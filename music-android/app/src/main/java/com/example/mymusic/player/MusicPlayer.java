@@ -70,11 +70,13 @@ public class MusicPlayer {
             String songUrl = serverBaseUrl + "/api/songs/" + song.getId();
             Uri source = localFile.exists() ? Uri.fromFile(localFile)
                     : Uri.parse(songUrl + "/stream");
-            MediaMetadata metadata = new MediaMetadata.Builder()
+            MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder()
                     .setTitle(song.getTitle())
-                    .setArtist(song.getArtist())
-                    .setArtworkUri(Uri.parse(songUrl + "/cover"))
-                    .build();
+                    .setArtist(song.getArtist());
+            if (song.getId() >= 0) {
+                metadataBuilder.setArtworkUri(Uri.parse(songUrl + "/cover"));
+            }
+            MediaMetadata metadata = metadataBuilder.build();
             items.add(new MediaItem.Builder()
                     .setMediaId(String.valueOf(song.getId()))
                     .setUri(source)

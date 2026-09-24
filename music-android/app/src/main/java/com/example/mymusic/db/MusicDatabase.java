@@ -57,12 +57,13 @@ public class MusicDatabase extends SQLiteOpenHelper {
         values.put(COLUMN_FILE_PATH, filePath);
         values.put(COLUMN_DOWNLOADED_AT, System.currentTimeMillis());
 
-        db.insertWithOnConflict(
+        long rowId = db.insertWithOnConflict(
                 TABLE_SONGS,
                 null,
                 values,
                 SQLiteDatabase.CONFLICT_REPLACE
         );
+        if (rowId == -1) throw new IllegalStateException("음악 정보를 저장하지 못했습니다.");
     }
 
     // 2. 저장된 모든 다운로드 곡 목록 조회 (최신 다운로드순)
@@ -104,6 +105,20 @@ public class MusicDatabase extends SQLiteOpenHelper {
         return rows > 0;
     }
 
+    // Imported files use negative IDs; server IDs are non-negative.
+    // -1 is reserved by the song list as its "nothing playing" marker.
+    public int getNextImportedId() {
+        SQLiteDatabase db = getReadableDatabase();
+        try (Cursor cursor = db.rawQuery(
+                "SELECT MIN(" + COLUMN_ID + ") FROM " + TABLE_SONGS
+                        + " WHERE " + COLUMN_ID + " < -1", null)) {
+            if (!cursor.moveToFirst() || cursor.isNull(0)) return -2;
+            int lowestId = cursor.getInt(0);
+            if (lowestId == Integer.MIN_VALUE) throw new IllegalStateException("가져올 수 있는 곡 수를 초과했습니다.");
+            return lowestId - 1;
+        }
+    }
+
     // 5. 검색 기능 (곡명 또는 가수명 검색)
     public List<Song> searchSongs(String keyword) {
         List<Song> songs = new ArrayList<>();
@@ -129,4 +144,3 @@ public class MusicDatabase extends SQLiteOpenHelper {
         return songs;
     }
 }
-

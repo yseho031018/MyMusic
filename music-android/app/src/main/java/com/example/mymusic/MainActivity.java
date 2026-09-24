@@ -1,9 +1,11 @@
 package com.example.mymusic;
 
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -31,6 +33,7 @@ import com.example.mymusic.db.MusicDatabase;
 import com.example.mymusic.model.Song;
 import com.example.mymusic.network.MusicApi;
 import com.example.mymusic.player.MusicPlayer;
+import com.example.mymusic.storage.LocalMusicImporter;
 import android.content.SharedPreferences;
 import org.json.JSONObject;
 
@@ -39,6 +42,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
 
@@ -50,9 +57,12 @@ public class MainActivity extends Activity {
     static final String PREF_KEY_SERVER_IP = "server_ip";
     static final String PREF_KEY_AUTO_MODE = "auto_server_discovery";
     private static final int REQUEST_SETTINGS = 1;
+    private static final int REQUEST_IMPORT_MP3 = 2;
 
     private TextView txtStatus;
     private Button btnRemoteStart;
+    private Button btnRefreshMetadata;
+    private Button btnImportMp3;
     private Button btnSettings;
     private String detectedManagerHost = null;
 
@@ -79,6 +89,8 @@ public class MainActivity extends Activity {
     private List<Song> songs = new ArrayList<>();
     private List<Song> serverSongs = new ArrayList<>();
     private boolean isLocalTab = false;
+    private boolean serverAvailable = false;
+    private final ExecutorService importExecutor = Executors.newSingleThreadExecutor();
 
     // 현재 선택된 음악의 목록 인덱스
     private int currentSongIndex = -1;
@@ -125,10 +137,14 @@ public class MainActivity extends Activity {
         // 상단 상태 및 목록
         txtStatus = findViewById(R.id.txtStatus);
         btnRemoteStart = findViewById(R.id.btnRemoteStart);
+        btnRefreshMetadata = findViewById(R.id.btnRefreshMetadata);
+        btnImportMp3 = findViewById(R.id.btnImportMp3);
         btnSettings = findViewById(R.id.btnSettings);
         recyclerSongs = findViewById(R.id.recyclerSongs);
 
         btnRemoteStart.setOnClickListener(v -> triggerRemoteStart());
+        btnRefreshMetadata.setOnClickListener(v -> refreshServerMetadata());
+        btnImportMp3.setOnClickListener(v -> chooseMp3Files());
         btnSettings.setOnClickListener(v ->
                 startActivityForResult(new Intent(this, SettingsActivity.class), REQUEST_SETTINGS));
 
@@ -422,11 +438,15 @@ public class MainActivity extends Activity {
             btnTabServer.setAlpha(0.6f);
             btnTabLocal.setAlpha(1.0f);
             txtStatus.setText("보관함 (" + songs.size() + "곡)");
+            btnImportMp3.setVisibility(View.VISIBLE);
+            btnRefreshMetadata.setVisibility(View.GONE);
         } else {
             songs = new ArrayList<>(serverSongs);
             btnTabServer.setAlpha(1.0f);
             btnTabLocal.setAlpha(0.6f);
             txtStatus.setText("서버 음악 (" + songs.size() + "곡)");
+            btnImportMp3.setVisibility(View.GONE);
+            btnRefreshMetadata.setVisibility(serverAvailable ? View.VISIBLE : View.GONE);
         }
 
         // 현재 재생 중인 곡의 인덱스를 새 목록에서 찾음
@@ -448,6 +468,7 @@ public class MainActivity extends Activity {
     private void loadSongs() {
         if (!isLocalTab) {
             txtStatus.setText("서버 연결 확인 중...");
+            btnRefreshMetadata.setVisibility(View.GONE);
         }
 
         new Thread(() -> {
@@ -459,8 +480,10 @@ public class MainActivity extends Activity {
                     List<Song> result = musicApi.getSongs();
                     runOnUiThread(() -> {
                         serverSongs = result;
+                        serverAvailable = true;
                         btnRemoteStart.setVisibility(View.GONE);
                         if (!isLocalTab) {
+                            btnRefreshMetadata.setVisibility(View.VISIBLE);
                             songs = new ArrayList<>(serverSongs);
                             songAdapter.setSongs(songs);
                             txtStatus.setText(getServerDisplayName(activeUrl) + " (" + songs.size() + "곡)");
@@ -475,6 +498,8 @@ public class MainActivity extends Activity {
             // 음악 서버(8080)가 오프라인인 경우: PC 데스크톱 매니저(8088) 확인
             String managerHost = findReachableManager();
             runOnUiThread(() -> {
+                serverAvailable = false;
+                btnRefreshMetadata.setVisibility(View.GONE);
                 if (managerHost != null) {
                     detectedManagerHost = managerHost;
                     btnRemoteStart.setVisibility(View.VISIBLE);
@@ -601,12 +626,126 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    private void chooseMp3Files() {
+        Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        picker.addCategory(Intent.CATEGORY_OPENABLE);
+        picker.setType("audio/*");
+        picker.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(picker, REQUEST_IMPORT_MP3);
+    }
+
+    private void importSelectedMp3Files(Intent data) {
+        Set<Uri> selected = new LinkedHashSet<>();
+        if (data.getData() != null) selected.add(data.getData());
+        ClipData clipData = data.getClipData();
+        if (clipData != null) {
+            for (int i = 0; i < clipData.getItemCount(); i++) {
+                Uri uri = clipData.getItemAt(i).getUri();
+                if (uri != null) selected.add(uri);
+            }
+        }
+        if (selected.isEmpty()) return;
+
+        Set<Uri> persistentGrants = new LinkedHashSet<>();
+        for (Uri uri : selected) {
+            try {
+                getContentResolver().takePersistableUriPermission(uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                persistentGrants.add(uri);
+            } catch (SecurityException ignored) {
+                // The picker still grants temporary access for this import.
+            }
+        }
+
+        btnImportMp3.setEnabled(false);
+        txtStatus.setText("MP3 가져오는 중...");
+        importExecutor.execute(() -> {
+            int imported = 0;
+            String firstError = null;
+            MusicDatabase importDb = new MusicDatabase(getApplicationContext());
+            try {
+                for (Uri uri : selected) {
+                    try {
+                        LocalMusicImporter.importSong(getApplicationContext(), importDb, uri);
+                        imported++;
+                    } catch (Exception e) {
+                        if (firstError == null) firstError = e.getMessage();
+                    } finally {
+                        if (persistentGrants.contains(uri)) {
+                            try {
+                                getContentResolver().releasePersistableUriPermission(uri,
+                                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                            } catch (SecurityException ignored) {}
+                        }
+                    }
+                }
+            } finally {
+                importDb.close();
+            }
+            int completed = imported;
+            String failure = firstError;
+            runOnUiThread(() -> {
+                if (isDestroyed()) return;
+                btnImportMp3.setEnabled(true);
+                if (isLocalTab) switchTab(true);
+                String message = completed + "곡을 보관함에 가져왔습니다.";
+                if (failure != null) message += " 실패 " + (selected.size() - completed)
+                        + "곡: " + failure;
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            });
+        });
+    }
+
+    private void refreshServerMetadata() {
+        if (!serverAvailable || isLocalTab) return;
+        String activeUrl = musicApi.getBaseUrl();
+        btnRefreshMetadata.setEnabled(false);
+        btnRefreshMetadata.setText("보정 중...");
+        txtStatus.setText("서버 음악 정보 보정 중...");
+        new Thread(() -> {
+            try {
+                List<Song> refreshed = new MusicApi(activeUrl).refreshMetadata();
+                runOnUiThread(() -> {
+                    if (isDestroyed()) return;
+                    if (activeUrl.equals(musicApi.getBaseUrl())) {
+                        SongAdapter.clearCoverCache();
+                        serverSongs = refreshed;
+                        if (!isLocalTab) {
+                            songs = new ArrayList<>(refreshed);
+                            songAdapter.setSongs(songs);
+                            txtStatus.setText(getServerDisplayName(activeUrl)
+                                    + " (" + songs.size() + "곡)");
+                            restoreCurrentPlayback();
+                        }
+                        Toast.makeText(this, "서버 음악 정보 보정이 완료되었습니다.",
+                                Toast.LENGTH_LONG).show();
+                    }
+                    btnRefreshMetadata.setEnabled(true);
+                    btnRefreshMetadata.setText("정보 자동 보정");
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (isDestroyed()) return;
+                    btnRefreshMetadata.setEnabled(true);
+                    btnRefreshMetadata.setText("정보 자동 보정");
+                    if (!isLocalTab) txtStatus.setText("서버 정보 보정 실패");
+                    Toast.makeText(this, "정보 보정 실패: " + e.getMessage(),
+                            Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_SETTINGS && resultCode == RESULT_OK) {
             switchTab(false);
             loadSongs();
+        } else if (requestCode == REQUEST_IMPORT_MP3 && resultCode == RESULT_OK && data != null) {
+            importSelectedMp3Files(data);
         }
     }
 
@@ -756,6 +895,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         handler.removeCallbacks(updateProgress);
+        importExecutor.shutdown();
 
         if (musicPlayer != null) {
             musicPlayer.release();

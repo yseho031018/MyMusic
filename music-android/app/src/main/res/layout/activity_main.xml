@@ -95,7 +95,35 @@
             android:backgroundTint="#2E7D32"
             android:layout_marginEnd="6dp" />
 
+        <Button
+            android:id="@+id/btnRefreshMetadata"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:text="정보 자동 보정"
+            android:contentDescription="서버 음악 정보 자동 보정"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:visibility="gone"
+            android:backgroundTint="#665184" />
+
     </LinearLayout>
+
+    <Button
+        android:id="@+id/btnImportMp3"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:text="＋ 휴대폰 MP3 가져오기"
+        android:contentDescription="휴대폰 MP3를 보관함에 가져오기"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:minHeight="0dp"
+        android:visibility="gone"
+        android:backgroundTint="#665184" />
 
 
     <!-- 음악 목록 -->
