@@ -14,6 +14,7 @@ import androidx.media3.session.MediaController;
 import androidx.media3.session.SessionToken;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.example.mymusic.model.Song;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -24,7 +25,8 @@ public class MusicPlayer {
     private final ListenableFuture<MediaController> controllerFuture;
     private final List<Player.Listener> listeners = new ArrayList<>();
     private MediaController controller;
-    private MediaItem pendingItem;
+    private List<MediaItem> pendingItems;
+    private int pendingStartIndex;
     private Runnable onConnected;
     private boolean released;
 
@@ -40,9 +42,9 @@ public class MusicPlayer {
                 for (Player.Listener listener : listeners) {
                     controller.addListener(listener);
                 }
-                if (pendingItem != null) {
-                    startItem(pendingItem);
-                    pendingItem = null;
+                if (pendingItems != null) {
+                    startQueue(pendingItems, pendingStartIndex);
+                    pendingItems = null;
                 }
                 if (onConnected != null) onConnected.run();
             } catch (Exception e) {
@@ -60,36 +62,56 @@ public class MusicPlayer {
         return controller != null;
     }
 
-    public void play(String url, int id, String title, String artist, String artworkUrl) {
-        playItem(Uri.parse(url), id, title, artist, artworkUrl);
-    }
-
-    public void playLocal(File file, int id, String title, String artist, String artworkUrl) {
-        playItem(Uri.fromFile(file), id, title, artist, artworkUrl);
-    }
-
-    private void playItem(Uri uri, int id, String title, String artist, String artworkUrl) {
-        MediaMetadata.Builder metadata = new MediaMetadata.Builder();
-        if (title != null) metadata.setTitle(title);
-        if (artist != null) metadata.setArtist(artist);
-        if (artworkUrl != null) metadata.setArtworkUri(Uri.parse(artworkUrl));
-
-        MediaItem item = new MediaItem.Builder()
-                .setMediaId(String.valueOf(id))
-                .setUri(uri)
-                .setMediaMetadata(metadata.build())
-                .build();
+    public void playQueue(List<Song> songs, int startIndex, String serverBaseUrl, File filesDir) {
+        List<MediaItem> items = new ArrayList<>(songs.size());
+        File musicDir = new File(filesDir, "music");
+        for (Song song : songs) {
+            File localFile = new File(musicDir, song.getId() + ".mp3");
+            String songUrl = serverBaseUrl + "/api/songs/" + song.getId();
+            Uri source = localFile.exists() ? Uri.fromFile(localFile)
+                    : Uri.parse(songUrl + "/stream");
+            MediaMetadata metadata = new MediaMetadata.Builder()
+                    .setTitle(song.getTitle())
+                    .setArtist(song.getArtist())
+                    .setArtworkUri(Uri.parse(songUrl + "/cover"))
+                    .build();
+            items.add(new MediaItem.Builder()
+                    .setMediaId(String.valueOf(song.getId()))
+                    .setUri(source)
+                    .setMediaMetadata(metadata)
+                    .build());
+        }
         if (controller == null) {
-            pendingItem = item;
+            pendingItems = items;
+            pendingStartIndex = startIndex;
         } else {
-            startItem(item);
+            startQueue(items, startIndex);
         }
     }
 
-    private void startItem(MediaItem item) {
-        controller.setMediaItem(item);
+    private void startQueue(List<MediaItem> items, int startIndex) {
+        controller.setRepeatMode(Player.REPEAT_MODE_ALL);
+        controller.setMediaItems(items, startIndex, 0);
         controller.prepare();
         controller.play();
+    }
+
+    public void next() {
+        if (controller != null && controller.hasNextMediaItem()) {
+            controller.seekToNextMediaItem();
+            controller.play();
+        }
+    }
+
+    public void previous() {
+        if (controller != null && controller.hasPreviousMediaItem()) {
+            controller.seekToPreviousMediaItem();
+            controller.play();
+        }
+    }
+
+    public int getMediaItemCount() {
+        return controller != null ? controller.getMediaItemCount() : 0;
     }
 
     public void pause() {
@@ -127,7 +149,7 @@ public class MusicPlayer {
 
     public void release() {
         released = true;
-        pendingItem = null;
+        pendingItems = null;
         onConnected = null;
         listeners.clear();
         MediaController.releaseFuture(controllerFuture);

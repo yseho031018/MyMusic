@@ -21,6 +21,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
+import androidx.media3.common.Timeline;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -184,22 +185,9 @@ public class MainActivity extends Activity {
         // 앱 시작 시 자동 연결 시도
         loadSongs();
 
-        // 이전 곡 (처음 곡이면 마지막 곡으로 순환)
-        btnPrevious.setOnClickListener(v -> {
-            if (songs.isEmpty()) return;
-            int prevIndex = currentSongIndex - 1;
-            if (prevIndex < 0) {
-                prevIndex = songs.size() - 1;
-            }
-            playSong(prevIndex);
-        });
-
-        // 다음 곡 (마지막 곡이면 처음 곡으로 순환)
-        btnNext.setOnClickListener(v -> {
-            if (songs.isEmpty()) return;
-            int nextIndex = (currentSongIndex + 1) % songs.size();
-            playSong(nextIndex);
-        });
+        // 화면과 알림의 이전/다음 버튼이 같은 재생 대기열을 사용
+        btnPrevious.setOnClickListener(v -> musicPlayer.previous());
+        btnNext.setOnClickListener(v -> musicPlayer.next());
 
         // 재생 / 일시정지
         btnPlayPause.setOnClickListener(v -> {
@@ -259,7 +247,15 @@ public class MainActivity extends Activity {
         musicPlayer.addListener(new Player.Listener() {
             @Override
             public void onMediaItemTransition(MediaItem mediaItem, int reason) {
+                seekBar.setProgress(0);
+                txtCurrentTime.setText("0:00");
+                txtDuration.setText("0:00");
                 restoreCurrentPlayback();
+            }
+
+            @Override
+            public void onTimelineChanged(Timeline timeline, int reason) {
+                updateNavigationButtons();
             }
 
             @Override
@@ -273,13 +269,6 @@ public class MainActivity extends Activity {
                     updateSeekBar();
                 }
 
-                if (state == Player.STATE_ENDED) {
-                    // 음악 재생이 끝나면 자동으로 다음 곡으로 넘어가며, 마지막 곡이면 처음으로 순환 재생
-                    if (!songs.isEmpty()) {
-                        int nextIndex = (currentSongIndex + 1) % songs.size();
-                        playSong(nextIndex);
-                    }
-                }
             }
         });
         musicPlayer.setOnConnectedListener(this::restoreCurrentPlayback);
@@ -634,29 +623,18 @@ public class MainActivity extends Activity {
         Song selectedSong = songs.get(index);
         songAdapter.setPlayingSongId(selectedSong.getId());
 
-        String streamUrl =
-                musicApi.getBaseUrl()
-                        + "/api/songs/"
-                        + selectedSong.getId()
-                        + "/stream";
-        String coverUrl = musicApi.getBaseUrl() + "/api/songs/"
-                + selectedSong.getId() + "/cover";
-
         // 스마트폰에 저장된 음악 파일 확인
         File localFile = new File(
                 new File(getFilesDir(), "music"),
                 selectedSong.getId() + ".mp3"
         );
+        musicPlayer.playQueue(songs, index, musicApi.getBaseUrl(), getFilesDir());
 
         if (localFile.exists()) {
             // 다운로드한 음악이 있으면 로컬 재생
-            musicPlayer.playLocal(localFile, selectedSong.getId(), selectedSong.getTitle(),
-                    selectedSong.getArtist(), coverUrl);
             txtStatus.setText("오프라인 재생");
         } else {
             // 다운로드한 음악이 없으면 서버 스트리밍
-            musicPlayer.play(streamUrl, selectedSong.getId(), selectedSong.getTitle(),
-                    selectedSong.getArtist(), coverUrl);
             txtStatus.setText("서버 스트리밍");
         }
 
@@ -713,9 +691,9 @@ public class MainActivity extends Activity {
         updateNavigationButtons();
     }
 
-    // 이전 곡 / 다음 곡 버튼 상태 (곡이 2곡 이상이면 순환 이동 가능)
+    // 현재 재생 대기열에 2곡 이상 있으면 이전/다음 곡으로 이동 가능
     private void updateNavigationButtons() {
-        boolean canNavigate = songs.size() > 1 && currentSongIndex >= 0;
+        boolean canNavigate = musicPlayer.getMediaItemCount() > 1;
         btnPrevious.setEnabled(canNavigate);
         btnNext.setEnabled(canNavigate);
     }
