@@ -259,12 +259,13 @@ public final class NowPlayingActivity extends Activity {
 
     private void updateCaptionVisibility() {
         boolean hasTrack = musicPlayer != null && musicPlayer.getCurrentMediaItem() != null;
-        captionContainer.setVisibility(captionsEnabled && hasTrack ? View.VISIBLE : View.GONE);
+        captionContainer.setVisibility(hasTrack ? View.VISIBLE : View.GONE);
         captionButton.setTextColor(captionsEnabled ? currentAccent : 0xFF8C8798);
         captionButton.setContentDescription(captionsEnabled ? "싱크 자막 끄기" : "싱크 자막 켜기");
         if (!captionsEnabled) {
             caption.setText("");
             clearCaptionNeighbors();
+            if (hasTrack) showCaptionWaveform();
         }
     }
 
