@@ -62,39 +62,50 @@
         android:focusable="true"
         android:orientation="vertical"
         android:visibility="gone">
-        <TextView
-            android:id="@+id/nowPlayingCaptionPrevious"
+        <LinearLayout
+            android:id="@+id/nowPlayingCaptionLines"
             android:layout_width="match_parent"
-            android:layout_height="20dp"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:textColor="#9389A2"
-            android:textSize="12sp" />
-        <TextView
-            android:id="@+id/nowPlayingCaption"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/nowPlayingCaptionPrevious"
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:textColor="#9389A2"
+                android:textSize="12sp" />
+            <TextView
+                android:id="@+id/nowPlayingCaption"
+                android:layout_width="match_parent"
+                android:layout_height="28dp"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:textColor="#F3E8FF"
+                android:textSize="16sp" />
+            <TextView
+                android:id="@+id/nowPlayingCaptionNext"
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:textColor="#9389A2"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <com.example.mymusic.player.HorizontalWaveformView
+            android:id="@+id/nowPlayingCaptionWaveform"
             android:layout_width="match_parent"
-            android:layout_height="28dp"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:textColor="#F3E8FF"
-            android:textSize="16sp" />
-        <TextView
-            android:id="@+id/nowPlayingCaptionNext"
-            android:layout_width="match_parent"
-            android:layout_height="20dp"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:textColor="#9389A2"
-            android:textSize="12sp" />
+            android:layout_height="68dp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <TextView

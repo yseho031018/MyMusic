@@ -24,6 +24,7 @@ import com.example.mymusic.lyrics.Lyrics;
 import com.example.mymusic.lyrics.LyricsRepository;
 import com.example.mymusic.network.MusicApi;
 import com.example.mymusic.player.AudioLevels;
+import com.example.mymusic.player.HorizontalWaveformView;
 import com.example.mymusic.player.MusicPlayer;
 import com.example.mymusic.player.TurntableView;
 
@@ -41,7 +42,8 @@ public final class NowPlayingActivity extends Activity {
     private TurntableView turntable;
     private TextView title, artist, positionText, durationText, playPause, previous, next;
     private TextView captionButton, caption, captionPrevious, captionNext;
-    private View captionContainer;
+    private View captionContainer, captionLines;
+    private HorizontalWaveformView captionWaveform;
     private SeekBar seekBar;
     private boolean trackingSeek;
     private boolean captionsEnabled;
@@ -82,6 +84,8 @@ public final class NowPlayingActivity extends Activity {
         next = findViewById(R.id.nowPlayingNext);
         captionButton = findViewById(R.id.btnNowPlayingCaption);
         captionContainer = findViewById(R.id.nowPlayingCaptionContainer);
+        captionLines = findViewById(R.id.nowPlayingCaptionLines);
+        captionWaveform = findViewById(R.id.nowPlayingCaptionWaveform);
         captionPrevious = findViewById(R.id.nowPlayingCaptionPrevious);
         caption = findViewById(R.id.nowPlayingCaption);
         captionNext = findViewById(R.id.nowPlayingCaptionNext);
@@ -137,6 +141,7 @@ public final class NowPlayingActivity extends Activity {
         super.onStart();
         AudioLevels.setEnabled(true);
         turntable.setAnimationsEnabled(true);
+        captionWaveform.setAnimationsEnabled(true);
         syncOffsetMs = readSyncOffset();
         MediaItem item = musicPlayer.getCurrentMediaItem();
         if (captionsEnabled && item != null && readEmbeddedOnly() != captionEmbeddedOnly) loadCaption();
@@ -146,6 +151,7 @@ public final class NowPlayingActivity extends Activity {
     @Override protected void onStop() {
         handler.removeCallbacks(progressUpdate);
         turntable.setAnimationsEnabled(false);
+        captionWaveform.setAnimationsEnabled(false);
         AudioLevels.setEnabled(false);
         super.onStop();
     }
@@ -168,7 +174,8 @@ public final class NowPlayingActivity extends Activity {
         cancelCaptionLoad();
         captionLyrics = Lyrics.fromText("", "");
         clearCaptionNeighbors();
-        caption.setText(captionsEnabled && item != null ? "싱크 가사 확인 중…" : "");
+        caption.setText("");
+        if (item != null) showCaptionWaveform();
         syncOffsetMs = readSyncOffset();
         if (item == null) {
             title.setText("재생 중인 음악 없음");
@@ -203,12 +210,14 @@ public final class NowPlayingActivity extends Activity {
         boolean hasTrack = musicPlayer.getCurrentMediaItem() != null;
         boolean playing = musicPlayer.isPlaying();
         turntable.setPlaybackState(hasTrack, playing);
+        captionWaveform.setPlaybackActive(playing);
         playPause.setText(playing ? "Ⅱ" : "▶");
         playPause.setContentDescription(playing ? "일시정지" : "재생");
         playPause.setEnabled(hasTrack);
         playPause.setAlpha(hasTrack ? 1f : .45f);
         seekBar.setEnabled(hasTrack);
         captionContainer.setEnabled(hasTrack);
+        updateCaptionVisibility();
         captionButton.setEnabled(hasTrack);
         captionButton.setAlpha(hasTrack ? 1f : .45f);
         boolean canNavigate = musicPlayer.getMediaItemCount() > 1;
@@ -232,7 +241,8 @@ public final class NowPlayingActivity extends Activity {
     }
 
     private void updateCaptionVisibility() {
-        captionContainer.setVisibility(captionsEnabled ? View.VISIBLE : View.GONE);
+        boolean hasTrack = musicPlayer != null && musicPlayer.getCurrentMediaItem() != null;
+        captionContainer.setVisibility(captionsEnabled && hasTrack ? View.VISIBLE : View.GONE);
         captionButton.setTextColor(captionsEnabled ? 0xFFDCC5FF : 0xFF8C8798);
         captionButton.setContentDescription(captionsEnabled ? "싱크 자막 끄기" : "싱크 자막 켜기");
         if (!captionsEnabled) {
@@ -243,11 +253,21 @@ public final class NowPlayingActivity extends Activity {
 
     private void updateCaption(long positionMs) {
         if (!captionsEnabled || !captionLyrics.isSynced()) return;
+        captionLines.setVisibility(View.VISIBLE);
+        captionWaveform.setVisibility(View.GONE);
         int index = captionLyrics.lineAt(positionMs, syncOffsetMs);
         String line = index < 0 ? "" : captionLyrics.timedLines.get(index).text;
-        setCaptionText(caption, line);
+        boolean currentChanged = setCaptionText(caption, line);
         setCaptionText(captionPrevious, neighborCaptionText(index, -1));
         setCaptionText(captionNext, neighborCaptionText(index, 1));
+        if (currentChanged) captionContainer.setContentDescription(line.isEmpty()
+                ? "전체 가사 펼쳐 보기" : line + " · 전체 가사 펼쳐 보기");
+    }
+
+    private void showCaptionWaveform() {
+        captionLines.setVisibility(View.GONE);
+        captionWaveform.setVisibility(View.VISIBLE);
+        captionContainer.setContentDescription("전체 가사 펼쳐 보기");
     }
 
     private String neighborCaptionText(int index, int direction) {
@@ -263,8 +283,10 @@ public final class NowPlayingActivity extends Activity {
         captionNext.setText("");
     }
 
-    private static void setCaptionText(TextView view, String text) {
-        if (!text.contentEquals(view.getText())) view.setText(text);
+    private static boolean setCaptionText(TextView view, String text) {
+        if (text.contentEquals(view.getText())) return false;
+        view.setText(text);
+        return true;
     }
 
     private void loadCaption() {
@@ -276,7 +298,8 @@ public final class NowPlayingActivity extends Activity {
         int request = captionGeneration;
         long duration = musicPlayer.getDuration();
         clearCaptionNeighbors();
-        caption.setText("싱크 가사 확인 중…");
+        caption.setText("");
+        showCaptionWaveform();
         captionLoad = lyricWorker.submit(() -> {
             Lyrics result = null;
             try { result = lyricsRepository.loadSynced(item, duration, embeddedOnly); }
@@ -286,10 +309,7 @@ public final class NowPlayingActivity extends Activity {
                 if (isFinishing() || isDestroyed() || request != captionGeneration || !captionsEnabled) return;
                 captionLyrics = loaded == null ? Lyrics.fromText("", "") : loaded;
                 if (captionLyrics.isSynced()) updateCaption(musicPlayer.getCurrentPosition());
-                else {
-                    clearCaptionNeighbors();
-                    caption.setText("싱크 가사가 없습니다");
-                }
+                else showCaptionWaveform();
             });
         });
     }
