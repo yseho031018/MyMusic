@@ -20,9 +20,9 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="재생 화면 닫기"
             android:gravity="center"
-            android:text="⌄"
-            android:textColor="#E3DFEB"
-            android:textSize="28sp" />
+            android:text="&lt;"
+            android:textColor="#CDB8F6"
+            android:textSize="20sp" />
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -58,7 +58,6 @@
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:layout_marginTop="8dp"
-        android:background="@drawable/turntable_lyrics_button"
         android:ellipsize="end"
         android:gravity="center"
         android:maxLines="1"
