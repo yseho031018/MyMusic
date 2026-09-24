@@ -2,20 +2,18 @@ package com.example.mymusic.player;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.View;
 
-/** A horizontal wave that replaces unavailable synced captions. */
+/** A row of rounded bars with a wave-shaped silhouette when synced lyrics are unavailable. */
 public final class HorizontalWaveformView extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Path wave = new Path();
     private boolean playing;
     private boolean animationsEnabled;
     private float shownLevel;
+    private float shownAudioAvailable;
     private float phase;
     private long lastFrameTime;
     private int accentColor = AlbumAccent.DEFAULT;
@@ -47,44 +45,42 @@ public final class HorizontalWaveformView extends View {
         long elapsed = lastFrameTime == 0 ? 0 : Math.min(64, Math.max(0, now - lastFrameTime));
         lastFrameTime = now;
         if (animationsEnabled && elapsed > 0) {
-            float target = playing ? Math.min(1f, AudioLevels.bass() * .55f
+            boolean audioAvailable = playing && AudioLevels.hasRecentData();
+            float target = audioAvailable ? Math.min(1f, AudioLevels.bass() * .55f
                     + AudioLevels.energy() * .35f + AudioLevels.kick() * .5f) : 0f;
-            shownLevel += (target - shownLevel) * Math.min(1f, elapsed / 110f);
-            if (playing) phase += elapsed * .018f;
+            shownLevel += (target - shownLevel) * Math.min(1f, elapsed / 220f);
+            shownAudioAvailable += ((audioAvailable ? 1f : 0f) - shownAudioAvailable)
+                    * Math.min(1f, elapsed / 220f);
+            if (audioAvailable) phase += elapsed * .009f;
         }
 
         float density = getResources().getDisplayMetrics().density;
-        float left = 18f * density;
-        float right = getWidth() - left;
-        float middle = getHeight() / 2f;
-        if (right <= left) return;
-
-        paint.setStyle(Paint.Style.STROKE);
+        int count = 32;
+        float barWidth = 3.5f * density;
+        float gap = Math.min(9f * density, (getWidth() - 40f * density - barWidth) / (count - 1));
+        if (gap <= barWidth) return;
+        float left = (getWidth() - ((count - 1) * gap + barWidth)) / 2f;
+        float baseline = getHeight() * .76f;
+        float maxHeight = getHeight() * .68f;
+        paint.setStyle(Paint.Style.FILL);
         paint.setStrokeCap(Paint.Cap.ROUND);
-        paint.setStrokeJoin(Paint.Join.ROUND);
-        paint.setStrokeWidth(1f * density);
-        paint.setColor(Color.argb(65, Color.red(accentColor),
-                Color.green(accentColor), Color.blue(accentColor)));
-        canvas.drawLine(left, middle, right, middle, paint);
-
-        wave.reset();
-        float amplitude = Math.min(getHeight() * .32f, 18f * density) * shownLevel;
-        int segments = Math.max(32, Math.round((right - left) / (3f * density)));
-        for (int i = 0; i <= segments; i++) {
-            float progress = (float) i / segments;
-            float envelope = (float) Math.sin(Math.PI * progress);
-            float shape = (float) (Math.sin(progress * Math.PI * 18 + phase) * .7
-                    + Math.sin(progress * Math.PI * 31 - phase * .7f) * .3);
-            float x = left + (right - left) * progress;
-            float y = middle + shape * envelope * amplitude;
-            if (i == 0) wave.moveTo(x, y); else wave.lineTo(x, y);
-        }
-        paint.setStrokeWidth(2f * density);
         paint.setColor(accentColor);
-        canvas.drawPath(wave, paint);
+        for (int i = 0; i < count; i++) {
+            float broadWave = ((float) Math.sin(i * .68f + .2f) + 1f) * .5f;
+            float smallWave = ((float) Math.sin(i * 1.51f + 1.3f) + 1f) * .5f;
+            float profile = .25f + .48f * broadWave + .27f * smallWave;
+            float motion = shownAudioAvailable * shownLevel
+                    * (((float) Math.sin(i * .48f + phase) + 1f) * .5f);
+            float height = Math.min(maxHeight, 6f * density
+                    + profile * (16f + 20f * shownLevel) * density + motion * 6f * density);
+            float x = left + i * gap;
+            canvas.drawRoundRect(x, baseline - height, x + barWidth, baseline,
+                    barWidth / 2f, barWidth / 2f, paint);
+        }
 
-        if (animationsEnabled && isShown() && (playing || shownLevel > .01f)) {
-            postInvalidateOnAnimation();
+        if (animationsEnabled && isShown()) {
+            if (shownLevel > .01f || shownAudioAvailable > .01f) postInvalidateOnAnimation();
+            else if (playing) postInvalidateDelayed(120);
         }
     }
 }
