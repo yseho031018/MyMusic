@@ -91,6 +91,25 @@
         android:textColor="#AAA9B8"
         android:textSize="12sp" />
 
+    <TextView
+        android:id="@+id/lyricsCompanionStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:textColor="#AAA9B8"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/translateAttribution"
+        android:layout_width="172dp"
+        android:layout_height="24dp"
+        android:layout_marginBottom="4dp"
+        android:contentDescription="Google Translate 제공 번역"
+        android:scaleType="fitStart"
+        android:src="@drawable/translate_attribution"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="44dp"
@@ -144,13 +163,11 @@
             android:layout_height="match_parent"
             android:padding="18dp"
             android:visibility="gone">
-            <TextView
-                android:id="@+id/fullLyricsText"
+            <LinearLayout
+                android:id="@+id/fullLyricsLines"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:lineSpacingExtra="9dp"
-                android:textColor="#E5E2ED"
-                android:textSize="17sp" />
+                android:orientation="vertical" />
         </ScrollView>
     </FrameLayout>
 
