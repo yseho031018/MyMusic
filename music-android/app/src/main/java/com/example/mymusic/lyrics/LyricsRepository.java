@@ -38,6 +38,15 @@ public final class LyricsRepository {
     }
 
     public Lyrics load(MediaItem item, long durationMs, boolean embeddedOnly) throws IOException {
+        return load(item, durationMs, embeddedOnly, false);
+    }
+
+    /** Finds timed lyrics for the player caption, even when the MP3 has only plain lyrics. */
+    public Lyrics loadSynced(MediaItem item, long durationMs, boolean embeddedOnly) throws IOException {
+        return load(item, durationMs, embeddedOnly, true);
+    }
+
+    private Lyrics load(MediaItem item, long durationMs, boolean embeddedOnly, boolean requireSynced) throws IOException {
         Lyrics embedded;
         try {
             embedded = readEmbedded(item);
@@ -45,7 +54,7 @@ public final class LyricsRepository {
             // The server may be offline while a local queue is still available.
             embedded = empty();
         }
-        if (embedded.hasLyrics() || embeddedOnly) return embedded;
+        if ((requireSynced ? embedded.isSynced() : embedded.hasLyrics()) || embeddedOnly) return embedded;
 
         String title = item.mediaMetadata.title == null ? "" : item.mediaMetadata.title.toString().trim();
         String artist = item.mediaMetadata.artist == null ? "" : item.mediaMetadata.artist.toString().trim();

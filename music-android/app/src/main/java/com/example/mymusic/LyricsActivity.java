@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class LyricsActivity extends Activity {
+    public static final String PREFS_NAME = "LyricsActivity";
     private static final int ACTIVE_COLOR = 0xFFE4CFFF;
     private static final int INACTIVE_COLOR = 0xFF9290A2;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -98,7 +99,7 @@ public class LyricsActivity extends Activity {
         previous = findViewById(R.id.lyricsPrevious);
         next = findViewById(R.id.lyricsNext);
 
-        embeddedOnly = getPreferences(MODE_PRIVATE).getBoolean("embedded_only", false);
+        embeddedOnly = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean("embedded_only", false);
         repository = new LyricsRepository(this);
         companion = new LyricsCompanion(this);
         musicPlayer = new MusicPlayer(this);
@@ -170,13 +171,13 @@ public class LyricsActivity extends Activity {
             if (id >= 5 && id <= 7) {
                 syncOffsetMs = id == 7 ? 0 : Math.max(-10_000, Math.min(10_000,
                         syncOffsetMs + (id == 5 ? 500 : -500)));
-                getPreferences(MODE_PRIVATE).edit().putInt(syncPreferenceKey(), syncOffsetMs).apply();
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putInt(syncPreferenceKey(), syncOffsetMs).apply();
                 updateProgress();
                 return true;
             }
             if (id == 1 || id == 2) {
                 embeddedOnly = id == 1;
-                getPreferences(MODE_PRIVATE).edit().putBoolean("embedded_only", embeddedOnly).apply();
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putBoolean("embedded_only", embeddedOnly).apply();
             } else if (id == 3) {
                 repository.clearOnlineCache(musicPlayer.getCurrentMediaItem());
             }
@@ -207,7 +208,7 @@ public class LyricsActivity extends Activity {
         String key = item.mediaId + "|" + uri + "|" + embeddedOnly;
         if (key.equals(currentTrackKey)) return;
         currentTrackKey = key;
-        syncOffsetMs = getPreferences(MODE_PRIVATE).getInt(syncPreferenceKey(), 0);
+        syncOffsetMs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getInt(syncPreferenceKey(), 0);
         int generation = ++loadGeneration;
         if (pendingLoad != null) pendingLoad.cancel(true);
         companion.cancel();

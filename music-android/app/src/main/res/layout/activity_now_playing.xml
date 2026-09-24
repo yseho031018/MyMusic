@@ -33,15 +33,16 @@
             android:textSize="12sp"
             android:textStyle="bold" />
         <TextView
-            android:id="@+id/btnNowPlayingLyricsTop"
+            android:id="@+id/btnNowPlayingCaption"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="가사 보기"
+            android:contentDescription="싱크 자막 켜기"
             android:gravity="center"
-            android:text="♫"
+            android:text="CC"
             android:textColor="#D8C5F9"
-            android:textSize="22sp" />
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <com.example.mymusic.player.TurntableView
@@ -51,6 +52,21 @@
         android:layout_weight="1"
         android:minHeight="200dp"
         android:src="@drawable/ic_music_placeholder" />
+
+    <TextView
+        android:id="@+id/nowPlayingCaption"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/turntable_lyrics_button"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:textColor="#F3E8FF"
+        android:textSize="16sp"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/nowPlayingTitle"

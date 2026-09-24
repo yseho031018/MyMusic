@@ -29,6 +29,10 @@ public final class TurntableView extends AppCompatImageView {
     private float wavePhase;
     private float waveStrength;
     private float needlePosition;
+    private float playbackProgress;
+    private float shownBass;
+    private float shownEnergy;
+    private float shownKick;
     private long lastFrameTime;
 
     public TurntableView(Context context, AttributeSet attrs) {
@@ -48,6 +52,11 @@ public final class TurntableView extends AppCompatImageView {
         invalidate();
     }
 
+    public void setPlaybackProgress(float progress) {
+        playbackProgress = Math.max(0f, Math.min(1f, progress));
+        invalidate();
+    }
+
     @Override protected void onDraw(Canvas canvas) {
         long now = SystemClock.uptimeMillis();
         long elapsed = lastFrameTime == 0 ? 0 : Math.min(64, Math.max(0, now - lastFrameTime));
@@ -56,6 +65,10 @@ public final class TurntableView extends AppCompatImageView {
             float step = Math.min(1f, elapsed / 320f);
             needlePosition += ((playing ? 1f : 0f) - needlePosition) * step;
             waveStrength += ((playing ? 1f : 0f) - waveStrength) * step;
+            float audioStep = Math.min(1f, elapsed / 90f);
+            shownBass += ((playing ? AudioLevels.bass() : 0f) - shownBass) * audioStep;
+            shownEnergy += ((playing ? AudioLevels.energy() : 0f) - shownEnergy) * audioStep;
+            shownKick += ((playing ? AudioLevels.kick() : 0f) - shownKick) * audioStep;
             if (playing) {
                 rotation = (rotation + elapsed * 0.2f) % 360f; // 33⅓ RPM
                 wavePhase += elapsed * 0.0045f;
@@ -118,10 +131,11 @@ public final class TurntableView extends AppCompatImageView {
             double angle = i * Math.PI * 2 / 90;
             float rhythm = (float) (0.45 + 0.55 * Math.abs(Math.sin(i * .57 + wavePhase)
                     * Math.cos(i * .19 - wavePhase * .7)));
-            float length = 5 + waveStrength * (7 + 26 * rhythm);
+            float intensity = .18f + shownBass * .55f + shownEnergy * .35f + shownKick * .55f;
+            float length = 5 + waveStrength * (5 + 38 * intensity * rhythm);
             float inner = 379;
             float outer = inner + length;
-            paint.setColor(Color.argb((int) (65 + waveStrength * 120), 203, 174, 255));
+            paint.setColor(Color.argb((int) (65 + waveStrength * (100 + shownKick * 70)), 203, 174, 255));
             canvas.drawLine(centerX + (float) Math.cos(angle) * inner,
                     centerY + (float) Math.sin(angle) * inner,
                     centerX + (float) Math.cos(angle) * outer,
@@ -195,7 +209,7 @@ public final class TurntableView extends AppCompatImageView {
         canvas.drawCircle(820, 190, 31, paint);
 
         canvas.save();
-        canvas.rotate(-14 + needlePosition * 29, 820, 190);
+        canvas.rotate(-14 + needlePosition * (29 + playbackProgress * 8), 820, 190);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeCap(Paint.Cap.ROUND);
         paint.setStrokeWidth(24);
