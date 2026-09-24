@@ -1,9 +1,6 @@
 package com.example.mymusic;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -48,7 +45,6 @@ public class LyricsActivity extends Activity {
     private TextView positionText, durationText, playPause, previous, next;
     private LinearLayout syncedLines, fullLines;
     private ScrollView syncedScroll, fullScroll;
-    private ImageView attribution;
     private SeekBar seekBar;
     private Lyrics lyrics = Lyrics.fromText("", "");
     private final List<LyricRow> timedViews = new ArrayList<>();
@@ -60,13 +56,15 @@ public class LyricsActivity extends Activity {
     private boolean fullMode;
     private boolean trackingSeek;
     private boolean embeddedOnly;
+    // Positive values advance the displayed lyrics relative to playback.
+    private int syncOffsetMs;
     private Future<?> pendingLoad;
 
     private final Runnable progressUpdate = new Runnable() {
         @Override public void run() {
             refreshTrack();
             updateProgress();
-            handler.postDelayed(this, 500);
+            handler.postDelayed(this, 100);
         }
     };
 
@@ -87,7 +85,6 @@ public class LyricsActivity extends Activity {
         artist = findViewById(R.id.lyricsArtist);
         source = findViewById(R.id.lyricsSource);
         companionStatus = findViewById(R.id.lyricsCompanionStatus);
-        attribution = findViewById(R.id.translateAttribution);
         tabSynced = findViewById(R.id.tabSyncedLyrics);
         tabFull = findViewById(R.id.tabFullLyrics);
         syncedLines = findViewById(R.id.syncedLyricsLines);
@@ -114,8 +111,6 @@ public class LyricsActivity extends Activity {
 
         findViewById(R.id.btnLyricsBack).setOnClickListener(v -> finish());
         findViewById(R.id.btnLyricsOptions).setOnClickListener(this::showOptions);
-        attribution.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW,
-                Uri.parse("https://translate.google.com/"))));
         tabSynced.setOnClickListener(v -> showMode(false));
         tabFull.setOnClickListener(v -> showMode(true));
         previous.setOnClickListener(v -> musicPlayer.previous());
@@ -162,20 +157,27 @@ public class LyricsActivity extends Activity {
         menu.getMenu().add(0, 1, 0, embeddedOnly ? "✓ MP3 내장 가사만" : "MP3 내장 가사만");
         menu.getMenu().add(0, 2, 1, !embeddedOnly ? "✓ 내장 가사 우선 · 없으면 온라인 검색" : "내장 가사 우선 · 없으면 온라인 검색");
         menu.getMenu().add(0, 3, 2, "가사 다시 확인");
-        menu.getMenu().add(0, 4, 3, "자동 번역 안내");
+        if (lyrics.isSynced()) {
+            menu.getMenu().add(0, 4, 3, syncOffsetMs == 0 ? "가사 싱크: 기본값"
+                    : String.format(Locale.getDefault(), "가사 싱크: %.1f초 %s",
+                    Math.abs(syncOffsetMs) / 1000f, syncOffsetMs > 0 ? "빠르게" : "늦게")).setEnabled(false);
+            menu.getMenu().add(0, 5, 4, "가사 0.5초 빠르게");
+            menu.getMenu().add(0, 6, 5, "가사 0.5초 늦게");
+            menu.getMenu().add(0, 7, 6, "싱크 조절 초기화");
+        }
         menu.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == 4) {
-                new AlertDialog.Builder(this)
-                        .setTitle("Google Translate 자동 번역")
-                        .setMessage("한국어 가사는 Google Translate로 자동 번역됩니다. 번역은 부정확할 수 있으며, 한글 발음도 노래의 실제 발음과 다를 수 있습니다.\n\nTHIS SERVICE MAY CONTAIN TRANSLATIONS POWERED BY GOOGLE. GOOGLE DISCLAIMS ALL WARRANTIES RELATED TO THE TRANSLATIONS, EXPRESS OR IMPLIED, INCLUDING ANY WARRANTIES OF ACCURACY, RELIABILITY, AND ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.")
-                        .setPositiveButton("확인", null)
-                        .show();
+            int id = item.getItemId();
+            if (id >= 5 && id <= 7) {
+                syncOffsetMs = id == 7 ? 0 : Math.max(-10_000, Math.min(10_000,
+                        syncOffsetMs + (id == 5 ? 500 : -500)));
+                getPreferences(MODE_PRIVATE).edit().putInt(syncPreferenceKey(), syncOffsetMs).apply();
+                updateProgress();
                 return true;
             }
-            if (item.getItemId() == 1 || item.getItemId() == 2) {
-                embeddedOnly = item.getItemId() == 1;
+            if (id == 1 || id == 2) {
+                embeddedOnly = id == 1;
                 getPreferences(MODE_PRIVATE).edit().putBoolean("embedded_only", embeddedOnly).apply();
-            } else if (item.getItemId() == 3) {
+            } else if (id == 3) {
                 repository.clearOnlineCache(musicPlayer.getCurrentMediaItem());
             }
             currentTrackKey = "";
@@ -188,11 +190,11 @@ public class LyricsActivity extends Activity {
     private void refreshTrack() {
         MediaItem item = musicPlayer.getCurrentMediaItem();
         if (item == null) {
-            currentTrackKey = "";
+            if ("NO_TRACK".equals(currentTrackKey)) return;
+            currentTrackKey = "NO_TRACK";
             loadGeneration++;
             if (pendingLoad != null) pendingLoad.cancel(true);
             companion.cancel();
-            attribution.setVisibility(View.GONE);
             companionStatus.setVisibility(View.GONE);
             title.setText("재생 중인 음악 없음");
             artist.setText("목록에서 음악을 재생해 주세요");
@@ -205,10 +207,10 @@ public class LyricsActivity extends Activity {
         String key = item.mediaId + "|" + uri + "|" + embeddedOnly;
         if (key.equals(currentTrackKey)) return;
         currentTrackKey = key;
+        syncOffsetMs = getPreferences(MODE_PRIVATE).getInt(syncPreferenceKey(), 0);
         int generation = ++loadGeneration;
         if (pendingLoad != null) pendingLoad.cancel(true);
         companion.cancel();
-        attribution.setVisibility(View.GONE);
         companionStatus.setVisibility(View.GONE);
         title.setText(item.mediaMetadata.title == null ? "제목 없음" : item.mediaMetadata.title);
         artist.setText(item.mediaMetadata.artist == null ? "" : item.mediaMetadata.artist);
@@ -247,7 +249,7 @@ public class LyricsActivity extends Activity {
                 if (lyrics.hasLyrics()) companion.load(lyrics, new LyricsCompanion.Listener() {
                     @Override public void onLanguage(String language) {
                         companionStatus.setVisibility(View.VISIBLE);
-                        companionStatus.setText("ja".equals(language) ? "일본어 가사 · 번역과 한글 발음 준비 중" : "영어 가사 · 번역과 한글 발음 준비 중");
+                        companionStatus.setText("ja".equals(language) ? "일본어 가사 · 한글 발음 준비 중" : "영어 가사 · 한글 발음 준비 중");
                     }
 
                     @Override public void onPronunciation(List<String> lines) {
@@ -255,12 +257,6 @@ public class LyricsActivity extends Activity {
                             if (i < fullViews.size()) fullViews.get(i).setPronunciation(lines.get(i));
                             if (i < timedViews.size()) timedViews.get(i).setPronunciation(lines.get(i));
                         }
-                    }
-
-                    @Override public void onTranslation(int index, String translation) {
-                        if (index < fullViews.size()) fullViews.get(index).setTranslation(translation);
-                        if (index < timedViews.size()) timedViews.get(index).setTranslation(translation);
-                        if (!translation.isEmpty()) attribution.setVisibility(View.VISIBLE);
                     }
 
                     @Override public void onStatus(String status) {
@@ -291,7 +287,7 @@ public class LyricsActivity extends Activity {
         if (lyrics.isSynced()) {
             for (Lyrics.Line line : lyrics.timedLines) {
                 LyricRow row = new LyricRow(line.text, true);
-                row.root.setOnClickListener(v -> musicPlayer.seekTo(line.timeMs));
+                row.root.setOnClickListener(v -> musicPlayer.seekTo(Math.max(0, line.timeMs - syncOffsetMs)));
                 syncedLines.addView(row.root);
                 timedViews.add(row);
             }
@@ -336,7 +332,7 @@ public class LyricsActivity extends Activity {
             }
             durationText.setText(formatTime(duration));
         }
-        if (lyrics.isSynced()) highlight(lyrics.lineAt(position));
+        if (lyrics.isSynced()) highlight(lyrics.lineAt(position, syncOffsetMs));
         updateControls();
     }
 
@@ -366,7 +362,6 @@ public class LyricsActivity extends Activity {
 
     private final class LyricRow {
         final LinearLayout root;
-        final TextView translated;
         final TextView original;
         final TextView pronunciation;
         final boolean timed;
@@ -377,12 +372,6 @@ public class LyricsActivity extends Activity {
             root = new LinearLayout(LyricsActivity.this);
             root.setOrientation(LinearLayout.VERTICAL);
             root.setPadding(0, dp(12), 0, dp(12));
-            translated = new TextView(LyricsActivity.this);
-            translated.setVisibility(View.GONE);
-            translated.setTextSize(timed ? 19 : 17);
-            translated.setTypeface(null, android.graphics.Typeface.BOLD);
-            translated.setTextColor(timed ? 0xFFAEA0C6 : ACTIVE_COLOR);
-            root.addView(translated);
             original = new TextView(LyricsActivity.this);
             original.setText(text.isEmpty() ? "♪" : text);
             original.setTextSize(timed ? 17 : 16);
@@ -395,11 +384,6 @@ public class LyricsActivity extends Activity {
             root.addView(pronunciation);
         }
 
-        void setTranslation(String text) {
-            translated.setText(text);
-            translated.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
-        }
-
         void setPronunciation(String text) {
             pronunciation.setText(text);
             pronunciation.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
@@ -408,12 +392,14 @@ public class LyricsActivity extends Activity {
         void setActive(boolean nowActive) {
             if (!timed) return;
             active = nowActive;
-            translated.setTextColor(active ? ACTIVE_COLOR : 0xFFAEA0C6);
-            translated.setTextSize(active ? 21 : 19);
             original.setTextColor(active ? 0xFFFFFFFF : INACTIVE_COLOR);
-            original.setTextSize(active ? 18 : 17);
+            original.setTextSize(active ? 21 : 17);
             pronunciation.setTextColor(active ? 0xFFABA9B7 : 0xFF777583);
         }
+    }
+
+    private String syncPreferenceKey() {
+        return "lyrics_sync_offset_" + currentTrackKey;
     }
 
     private static String formatTime(long milliseconds) {

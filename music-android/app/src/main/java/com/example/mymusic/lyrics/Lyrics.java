@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 
 public final class Lyrics {
     private static final Pattern TIMESTAMP = Pattern.compile("\\[(\\d{1,3}):(\\d{2})(?:[.:](\\d{1,3}))?\\]");
+    private static final Pattern OFFSET = Pattern.compile("(?i)^\\[offset:\\s*([+-]?\\d+)\\s*]$");
     private static final Pattern LRC_METADATA = Pattern.compile("(?i)^\\[(ar|al|ti|by|offset|length):.*]$");
 
     public static final class Line {
@@ -47,11 +48,22 @@ public final class Lyrics {
         return index;
     }
 
+    public int lineAt(long positionMs, long advanceMs) {
+        return lineAt(positionMs + advanceMs);
+    }
+
     public static Lyrics fromText(String text, String source) {
         if (text == null || text.trim().isEmpty()) return new Lyrics("", Collections.emptyList(), source);
         List<Line> lines = new ArrayList<>();
         List<String> plain = new ArrayList<>();
+        long offsetMs = 0;
         for (String raw : text.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1)) {
+            Matcher offset = OFFSET.matcher(raw.trim());
+            if (offset.matches()) {
+                try { offsetMs = Math.max(-600_000, Math.min(600_000, Long.parseLong(offset.group(1)))); }
+                catch (NumberFormatException ignored) { offsetMs = 0; }
+                continue;
+            }
             Matcher matcher = TIMESTAMP.matcher(raw);
             int end = 0;
             List<Long> times = new ArrayList<>();
@@ -71,7 +83,12 @@ public final class Lyrics {
                 plain.add(raw);
             }
         }
-        lines.sort((a, b) -> Long.compare(a.timeMs, b.timeMs));
-        return new Lyrics(String.join("\n", plain).trim(), lines, source);
+        List<Line> adjusted = new ArrayList<>(lines.size());
+        for (Line line : lines) {
+            // In LRC, a positive offset advances lyrics; a negative value delays them.
+            adjusted.add(new Line(Math.max(0, line.timeMs - offsetMs), line.text));
+        }
+        adjusted.sort((a, b) -> Long.compare(a.timeMs, b.timeMs));
+        return new Lyrics(String.join("\n", plain).trim(), adjusted, source);
     }
 }

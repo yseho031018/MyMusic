@@ -21,6 +21,25 @@ public class LyricsParsingTest {
         assertEquals(2, lyrics.lineAt(6000));
     }
 
+    @Test public void appliesLrcOffsetEvenWhenTagFollowsTheTimedLines() {
+        Lyrics early = Lyrics.fromText("[00:05.00]first\n[00:08.00]second\n[offset:+500]", "test");
+        assertEquals(4500, early.timedLines.get(0).timeMs);
+        assertEquals(-1, early.lineAt(4499));
+        assertEquals(0, early.lineAt(4500));
+
+        Lyrics late = Lyrics.fromText("[offset:-750]\n[00:05.00]first", "test");
+        assertEquals(5750, late.timedLines.get(0).timeMs);
+        assertEquals(0, late.lineAt(5750));
+        assertEquals("first", late.plainText);
+    }
+
+    @Test public void manualAdvanceAndDelayMoveTheActiveLine() {
+        Lyrics lyrics = Lyrics.fromText("[00:05.00]first\n[00:08.00]second", "test");
+        assertEquals(-1, lyrics.lineAt(4700));
+        assertEquals(0, lyrics.lineAt(4700, 500));
+        assertEquals(-1, lyrics.lineAt(5200, -500));
+    }
+
     @Test public void readsEmbeddedUsltAsPlainLyrics() throws Exception {
         byte[] body = concat(new byte[]{3, 'e', 'n', 'g', 0}, "a line\nanother line".getBytes(StandardCharsets.UTF_8));
         Lyrics lyrics = Id3LyricsReader.read(new ByteArrayInputStream(id3("USLT", body)));

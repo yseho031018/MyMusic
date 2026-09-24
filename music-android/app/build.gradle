@@ -49,6 +49,5 @@ dependencies {
     implementation 'androidx.media3:media3-common:1.9.3'
     implementation 'androidx.media3:media3-session:1.9.3'
     implementation 'com.google.mlkit:language-id:17.0.6'
-    implementation 'com.google.mlkit:translate:17.0.3'
     implementation 'com.atilika.kuromoji:kuromoji-ipadic:0.9.0'
 }
