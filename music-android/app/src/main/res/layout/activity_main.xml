@@ -52,19 +52,19 @@
         android:orientation="horizontal"
         android:background="@drawable/library_tab_strip">
         <Button
-            android:id="@+id/btnTabLocal"
-            style="@style/LibraryTab"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/library_local"/>
-        <Button
             android:id="@+id/btnTabServer"
             style="@style/LibraryTab"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/library_server"/>
+        <Button
+            android:id="@+id/btnTabLocal"
+            style="@style/LibraryTab"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/library_local"/>
     </LinearLayout>
 
     <LinearLayout

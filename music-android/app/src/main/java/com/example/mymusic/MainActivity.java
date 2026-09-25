@@ -464,7 +464,7 @@ public class MainActivity extends Activity {
         }
         updateNavigationButtons();
         updateLibraryState();
-        Toast.makeText(this, "보관함에서 삭제되었습니다: " + song.getTitle(), Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "오프라인 음악에서 삭제되었습니다: " + song.getTitle(), Toast.LENGTH_SHORT).show();
     }
 
     // 탭 전환 (서버 음악 <-> 다운로드 보관함)
@@ -754,7 +754,7 @@ public class MainActivity extends Activity {
                 if (isDestroyed()) return;
                 btnImportMp3.setEnabled(true);
                 if (isLocalTab) switchTab(true);
-                String message = completed + "곡을 보관함에 가져왔습니다.";
+                String message = completed + "곡을 오프라인 음악에 가져왔습니다.";
                 if (failure != null) message += " 실패 " + (selected.size() - completed)
                         + "곡: " + failure;
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
@@ -767,7 +767,7 @@ public class MainActivity extends Activity {
         String activeUrl = musicApi.getBaseUrl();
         btnRefreshMetadata.setEnabled(false);
         btnRefreshMetadata.setText("보정 중...");
-        txtStatus.setText("서버 음악 정보 보정 중...");
+        txtStatus.setText("서버의 곡 정보 보정 중...");
         new Thread(() -> {
             try {
                 List<Song> refreshed = new MusicApi(activeUrl).refreshMetadata();
@@ -782,7 +782,7 @@ public class MainActivity extends Activity {
                             txtStatus.setText(getServerDisplayName(activeUrl));
                             restoreCurrentPlayback();
                         }
-                        Toast.makeText(this, "서버 음악 정보 보정이 완료되었습니다.",
+                        Toast.makeText(this, "서버의 곡 정보 보정이 완료되었습니다.",
                                 Toast.LENGTH_LONG).show();
                     }
                     btnRefreshMetadata.setEnabled(true);
