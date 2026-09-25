@@ -71,8 +71,14 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
     }
 
     public void setPlayingSongId(int playingSongId) {
+        if (this.playingSongId == playingSongId) return;
+        int previous = this.playingSongId;
         this.playingSongId = playingSongId;
-        notifyDataSetChanged();
+        // Only rebind the two rows whose selection changed.
+        for (int i = 0; i < songs.size(); i++) {
+            int id = songs.get(i).getId();
+            if (id == previous || id == playingSongId) notifyItemChanged(i);
+        }
     }
 
     public Song getSong(int position) {
@@ -186,9 +192,13 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
 
         // 현재 재생 중인 곡 텍스트 강조
         if (song.getId() == playingSongId) {
-            holder.txtTitle.setTextColor(0xFF388E3C); // Green highlight
+            holder.txtTitle.setTextColor(0xFFC9A9FF);
+            holder.itemView.setSelected(true);
+            holder.playingIndicator.setVisibility(View.VISIBLE);
         } else {
             holder.txtTitle.setTextColor(holder.defaultTitleColor);
+            holder.itemView.setSelected(false);
+            holder.playingIndicator.setVisibility(View.INVISIBLE);
         }
 
         // 앨범 커버 로드 (캐시 우선, 비동기 로딩)
@@ -213,6 +223,7 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
         ImageView imgCover;
         TextView txtTitle;
         TextView txtArtist;
+        ImageView playingIndicator;
         int defaultTitleColor;
 
         public SongViewHolder(@NonNull View itemView) {
@@ -220,6 +231,7 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
             imgCover = itemView.findViewById(R.id.imgSongCover);
             txtTitle = itemView.findViewById(R.id.txtItemTitle);
             txtArtist = itemView.findViewById(R.id.txtItemArtist);
+            playingIndicator = itemView.findViewById(R.id.imgPlayingIndicator);
             defaultTitleColor = txtTitle.getCurrentTextColor();
         }
     }

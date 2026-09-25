@@ -1,266 +1,347 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:padding="20dp"
+    android:focusableInTouchMode="true">
 
-    <!-- 앱 제목과 설정 진입 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="24dp">
-
-        <TextView
+        android:orientation="horizontal"
+        android:paddingBottom="16dp">
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="My Music"
-            android:textSize="28sp"
-            android:textStyle="bold" />
-
-        <Button
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/library_eyebrow"
+                android:textSize="11sp"
+                android:letterSpacing="0.18"
+                android:textStyle="bold"
+                android:textColor="@color/library_accent"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="@string/library_title"
+                android:textSize="28sp"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="@color/library_text"/>
+        </LinearLayout>
+        <ImageButton
             android:id="@+id/btnSettings"
-            android:layout_width="wrap_content"
+            style="@style/LibraryIcon"
+            android:layout_width="48dp"
             android:layout_height="48dp"
-            android:text="설정"
-            android:contentDescription="설정 열기"
-            android:textSize="14sp"
-            android:backgroundTint="#33333E" />
+            android:src="@drawable/ic_library_settings"
+            android:contentDescription="@string/library_settings"/>
     </LinearLayout>
 
-    <!-- 목록 구분 탭 (서버 음악 / 다운로드 보관함) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/btnTabServer"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="서버 음악"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
+        android:padding="4dp"
+        android:orientation="horizontal"
+        android:background="@drawable/library_tab_strip">
         <Button
             android:id="@+id/btnTabLocal"
+            style="@style/LibraryTab"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="보관함"
-            android:textSize="14sp"
-            android:layout_marginStart="8dp" />
-
+            android:text="@string/library_local"/>
+        <Button
+            android:id="@+id/btnTabServer"
+            style="@style/LibraryTab"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/library_server"/>
     </LinearLayout>
 
-    <!-- 서버 및 재생 상태 바 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:layout_marginTop="14dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginTop="10dp">
+        android:background="@drawable/library_search">
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginStart="14dp"
+            android:src="@drawable/ic_library_search"
+            android:importantForAccessibility="no"/>
+        <EditText
+            android:id="@+id/searchSongs"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="48dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="8dp"
+            android:background="@null"
+            android:hint="@string/library_search_hint"
+            android:textColor="@color/library_text"
+            android:textColorHint="@color/library_muted"
+            android:textSize="14sp"
+            android:inputType="text"
+            android:imeOptions="actionDone"
+            android:singleLine="true"
+            android:autofillHints=""
+            android:importantForAutofill="no"/>
+        <ImageButton
+            android:id="@+id/btnClearSearch"
+            style="@style/LibraryIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_library_close"
+            android:contentDescription="@string/library_clear_search"
+            android:visibility="gone"/>
+    </LinearLayout>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="32dp"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
         <TextView
             android:id="@+id/txtStatus"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="음악 플레이어"
-            android:textColor="#AAAAAA"
-            android:textSize="13sp"
-            android:maxLines="1"
-            android:ellipsize="end" />
-
+            android:paddingStart="2dp"
+            android:paddingEnd="8dp"
+            android:text="@string/library_offline_ready"
+            android:textColor="@color/library_muted"
+            android:textSize="11sp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:accessibilityLiveRegion="polite"/>
         <Button
             android:id="@+id/btnRemoteStart"
+            style="@style/LibraryAction"
             android:layout_width="wrap_content"
-            android:layout_height="34dp"
-            android:text="⚡ 서버 켜기"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:visibility="gone"
-            android:backgroundTint="#2E7D32"
-            android:layout_marginEnd="6dp" />
-
-        <Button
-            android:id="@+id/btnRefreshMetadata"
-            android:layout_width="wrap_content"
-            android:layout_height="34dp"
-            android:text="정보 자동 보정"
-            android:contentDescription="서버 음악 정보 자동 보정"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:visibility="gone"
-            android:backgroundTint="#665184" />
-
+            android:layout_height="wrap_content"
+            android:text="@string/library_start_server"
+            android:visibility="gone"/>
     </LinearLayout>
 
-    <Button
-        android:id="@+id/btnImportMp3"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="8dp"
-        android:text="＋ 휴대폰 MP3 가져오기"
-        android:contentDescription="휴대폰 MP3를 보관함에 가져오기"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        android:minHeight="0dp"
-        android:visibility="gone"
-        android:backgroundTint="#665184" />
-
-
-    <!-- 음악 목록 -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerSongs"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="12dp" />
-
-    <!-- 현재 재생 중인 음악 정보 및 전체 재생 화면 진입 -->
     <LinearLayout
-        android:id="@+id/nowPlayingCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="52dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:clickable="true"
-        android:focusable="true"
-        android:contentDescription="현재 곡 재생 화면 보기"
-        android:layout_marginTop="16dp">
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            app:cardCornerRadius="10dp"
-            app:cardElevation="0dp"
-            app:cardBackgroundColor="#26262E">
-
-            <ImageView
-                android:id="@+id/imgCover"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"
-                android:src="@drawable/ic_music_placeholder"
-                android:contentDescription="Album Cover" />
-        </androidx.cardview.widget.CardView>
-
-        <LinearLayout
+        android:paddingBottom="4dp">
+        <TextView
+            android:id="@+id/txtLibraryCount"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginStart="14dp">
-
-            <TextView
-                android:id="@+id/txtNowPlaying"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="재생 중인 음악 없음"
-                android:textSize="17sp"
-                android:textStyle="bold"
-                android:maxLines="1"
-                android:ellipsize="end" />
-
-            <TextView
-                android:id="@+id/txtArtist"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="아티스트"
-                android:textSize="14sp"
-                android:textColor="#AAAAAA"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:layout_marginTop="4dp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
-                android:text="재생 화면 보기  ›"
-                android:textColor="#CBAEFF"
-                android:textSize="12sp" />
-
-        </LinearLayout>
-
-    </LinearLayout>
-
-    <!-- 재생 위치 조절 -->
-    <SeekBar
-        android:id="@+id/seekBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:max="1000"
-        android:progress="0"
-        android:layout_marginTop="8dp" />
-
-    <!-- 재생 시간 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/txtCurrentTime"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="0:00" />
-
-        <TextView
-            android:id="@+id/txtDuration"
+            android:textColor="@color/library_text"
+            android:textSize="13sp"
+            android:textStyle="bold"/>
+        <Button
+            android:id="@+id/btnRefreshMetadata"
+            style="@style/LibraryAction"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="0:00" />
-
+            android:text="@string/library_refresh_metadata"
+            android:contentDescription="@string/library_refresh_metadata_description"
+            android:visibility="gone"/>
+        <Button
+            android:id="@+id/btnImportMp3"
+            style="@style/LibraryAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/library_import"
+            android:contentDescription="@string/library_import_description"
+            android:visibility="gone"/>
     </LinearLayout>
 
-    <!-- 재생 컨트롤러 -->
-    <LinearLayout
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerSongs"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingBottom="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"/>
+        <LinearLayout
+            android:id="@+id/libraryEmptyState"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+            <ImageView
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@drawable/ic_library_record"
+                android:importantForAccessibility="no"/>
+            <TextView
+                android:id="@+id/txtEmptyTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center"
+                android:textColor="@color/library_text"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+            <TextView
+                android:id="@+id/txtEmptyDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:textColor="@color/library_muted"
+                android:textSize="12sp"
+                android:lineSpacingExtra="3dp"/>
+        </LinearLayout>
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/txtListHint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:paddingTop="3dp"
+        android:paddingBottom="8dp"
         android:gravity="center"
-        android:layout_marginTop="12dp">
+        android:textColor="@color/library_muted"
+        android:textSize="11sp"/>
 
-        <Button
-            android:id="@+id/btnPrevious"
-            android:layout_width="0dp"
+    <!-- Compact dock; tap artwork/title to open the full turntable. -->
+    <LinearLayout
+        android:id="@+id/miniPlayer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/library_panel"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:visibility="gone">
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="이전" />
-
-        <Button
-            android:id="@+id/btnPlayPause"
-            android:layout_width="0dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <RelativeLayout
+                android:id="@+id/nowPlayingCard"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground"
+                android:contentDescription="@string/library_open_player">
+                <androidx.cardview.widget.CardView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    app:cardCornerRadius="22dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#302B3A">
+                    <ImageView
+                        android:id="@+id/imgCover"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ic_music_placeholder"
+                        android:importantForAccessibility="no"/>
+                </androidx.cardview.widget.CardView>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="54dp"
+                    android:layout_centerVertical="true"
+                    android:orientation="vertical"
+                    android:paddingEnd="8dp">
+                    <TextView
+                        android:id="@+id/txtNowPlaying"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/library_text"
+                        android:maxLines="1"
+                        android:ellipsize="end"/>
+                    <TextView
+                        android:id="@+id/txtArtist"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:textSize="11sp"
+                        android:textColor="@color/library_muted"
+                        android:maxLines="1"
+                        android:ellipsize="end"/>
+                </LinearLayout>
+            </RelativeLayout>
+            <ImageButton
+                android:id="@+id/btnPlayPause"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/turntable_play_button"
+                android:backgroundTint="@null"
+                android:padding="13dp"
+                android:src="@drawable/ic_library_play"
+                android:contentDescription="@string/library_play"/>
+            <ImageButton
+                android:id="@+id/btnNext"
+                style="@style/LibraryIcon"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_library_next"
+                android:contentDescription="@string/library_next"/>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="재생" />
-
-        <Button
-            android:id="@+id/btnNext"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="다음" />
-
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/txtCurrentTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/library_initial_time"
+                android:textSize="11sp"
+                android:textColor="@color/library_muted"/>
+            <SeekBar
+                android:id="@+id/seekBar"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:max="1000"
+                android:progressTint="@color/library_accent"
+                android:progressBackgroundTint="#494151"
+                android:thumbTint="#E5D5FF"
+                android:contentDescription="@string/library_seek"/>
+            <TextView
+                android:id="@+id/txtDuration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/library_initial_time"
+                android:textSize="11sp"
+                android:textColor="@color/library_muted"/>
+        </LinearLayout>
     </LinearLayout>
-
 </LinearLayout>

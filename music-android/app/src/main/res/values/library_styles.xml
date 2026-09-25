@@ -1,0 +1,37 @@
+<resources>
+    <color name="library_background">#16161D</color>
+    <color name="library_text">#F6F2FA</color>
+    <color name="library_muted">#A9A4B2</color>
+    <color name="library_accent">#C9A9FF</color>
+    <style name="Theme.MyMusic.Library" parent="Theme.MyMusic">
+        <item name="android:windowBackground">@color/library_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">@color/library_accent</item>
+    </style>
+    <style name="LibraryAction" parent="@android:style/Widget.Material.Button">
+        <item name="android:background">@drawable/library_action</item>
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:textColor">@color/library_accent</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+    <style name="LibraryTab" parent="LibraryAction">
+        <item name="android:background">@drawable/library_tab</item>
+        <item name="android:textColor">@color/library_tab_text</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="LibraryIcon" parent="@android:style/Widget.Material.ImageButton">
+        <item name="android:background">@drawable/library_icon_button</item>
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:tint">@color/library_accent</item>
+        <item name="android:padding">13dp</item>
+        <item name="android:scaleType">fitCenter</item>
+    </style>
+</resources>

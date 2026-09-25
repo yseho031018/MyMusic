@@ -9,8 +9,13 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -20,6 +25,7 @@ import androidx.annotation.NonNull;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowCompat;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
@@ -31,6 +37,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.mymusic.adapter.SongAdapter;
 import com.example.mymusic.db.MusicDatabase;
 import com.example.mymusic.model.Song;
+import com.example.mymusic.model.SongSearch;
 import com.example.mymusic.network.MusicApi;
 import com.example.mymusic.player.MusicPlayer;
 import com.example.mymusic.storage.LocalMusicImporter;
@@ -63,7 +70,14 @@ public class MainActivity extends Activity {
     private Button btnRemoteStart;
     private Button btnRefreshMetadata;
     private Button btnImportMp3;
-    private Button btnSettings;
+    private ImageButton btnSettings;
+    private EditText searchSongs;
+    private View miniPlayer;
+    private View emptyState;
+    private TextView txtLibraryCount;
+    private TextView txtEmptyTitle;
+    private TextView txtEmptyDescription;
+    private TextView txtListHint;
     private String detectedManagerHost = null;
 
     private TextView txtNowPlaying;
@@ -76,9 +90,8 @@ public class MainActivity extends Activity {
     private SeekBar seekBar;
     private ImageView imgCover;
 
-    private Button btnPrevious;
-    private Button btnPlayPause;
-    private Button btnNext;
+    private ImageButton btnPlayPause;
+    private ImageButton btnNext;
     private Button btnTabServer;
     private Button btnTabLocal;
 
@@ -87,6 +100,7 @@ public class MainActivity extends Activity {
     private MusicDatabase musicDb;
 
     private List<Song> songs = new ArrayList<>();
+    private List<Song> librarySongs = new ArrayList<>();
     private List<Song> serverSongs = new ArrayList<>();
     private boolean isLocalTab = false;
     private boolean serverAvailable = false;
@@ -97,6 +111,7 @@ public class MainActivity extends Activity {
 
     private final Handler handler =
             new Handler(Looper.getMainLooper());
+    private final Runnable filterSearch = this::applySongFilter;
 
     // 재생 위치를 주기적으로 업데이트
     private final Runnable updateProgress =
@@ -115,19 +130,21 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         View mainView = findViewById(R.id.main);
+        WindowCompat.getInsetsController(getWindow(), mainView).setAppearanceLightStatusBars(false);
+        WindowCompat.getInsetsController(getWindow(), mainView).setAppearanceLightNavigationBars(false);
 
         ViewCompat.setOnApplyWindowInsetsListener(
                 mainView,
                 (view, windowInsets) -> {
                     Insets insets = windowInsets.getInsets(
-                            WindowInsetsCompat.Type.systemBars()
+                            WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.ime()
                     );
 
                     view.setPadding(
-                            insets.left + dpToPx(24),
-                            insets.top + dpToPx(24),
-                            insets.right + dpToPx(24),
-                            insets.bottom + dpToPx(24)
+                            insets.left + dpToPx(20),
+                            insets.top + dpToPx(12),
+                            insets.right + dpToPx(20),
+                            insets.bottom + dpToPx(8)
                     );
 
                     return windowInsets;
@@ -141,6 +158,13 @@ public class MainActivity extends Activity {
         btnImportMp3 = findViewById(R.id.btnImportMp3);
         btnSettings = findViewById(R.id.btnSettings);
         recyclerSongs = findViewById(R.id.recyclerSongs);
+        searchSongs = findViewById(R.id.searchSongs);
+        miniPlayer = findViewById(R.id.miniPlayer);
+        emptyState = findViewById(R.id.libraryEmptyState);
+        txtLibraryCount = findViewById(R.id.txtLibraryCount);
+        txtEmptyTitle = findViewById(R.id.txtEmptyTitle);
+        txtEmptyDescription = findViewById(R.id.txtEmptyDescription);
+        txtListHint = findViewById(R.id.txtListHint);
 
         btnRemoteStart.setOnClickListener(v -> triggerRemoteStart());
         btnRefreshMetadata.setOnClickListener(v -> refreshServerMetadata());
@@ -176,7 +200,6 @@ public class MainActivity extends Activity {
 
         seekBar = findViewById(R.id.seekBar);
 
-        btnPrevious = findViewById(R.id.btnPrevious);
         btnPlayPause = findViewById(R.id.btnPlayPause);
         btnNext = findViewById(R.id.btnNext);
 
@@ -194,13 +217,27 @@ public class MainActivity extends Activity {
         songAdapter.setMusicApi(musicApi);
         songAdapter.setFilesDir(getFilesDir());
         recyclerSongs.setAdapter(songAdapter);
+        View clearSearch = findViewById(R.id.btnClearSearch);
+        clearSearch.setOnClickListener(v -> searchSongs.setText(""));
+        searchSongs.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                clearSearch.setVisibility(s.length() == 0 ? View.GONE : View.VISIBLE);
+                handler.removeCallbacks(filterSearch);
+                handler.postDelayed(filterSearch, 150);
+            }
+            @Override public void afterTextChanged(Editable editable) {}
+        });
+        searchSongs.setOnEditorActionListener((view, action, event) -> {
+            hideSearchKeyboard();
+            return true;
+        });
 
         // 스와이프 제스처 설정 (오른쪽: 다운로드, 왼쪽: 삭제)
         setupSwipeGestures();
 
-        // 기본 선택: 서버 탭 활성화
-        btnTabServer.setAlpha(1.0f);
-        btnTabLocal.setAlpha(0.6f);
+        // Open the last library tab immediately, even when the server is offline.
+        switchTab(prefs.getBoolean("main_local_tab", true));
 
         // 음악을 선택하기 전에는 버튼 비활성화
         setControlsEnabled(false);
@@ -209,7 +246,6 @@ public class MainActivity extends Activity {
         loadSongs();
 
         // 화면과 알림의 이전/다음 버튼이 같은 재생 대기열을 사용
-        btnPrevious.setOnClickListener(v -> musicPlayer.previous());
         btnNext.setOnClickListener(v -> musicPlayer.next());
 
         // 재생 / 일시정지
@@ -297,8 +333,7 @@ public class MainActivity extends Activity {
         });
         musicPlayer.setOnConnectedListener(this::restoreCurrentPlayback);
 
-        // 재생 위치 업데이트 시작
-        handler.post(updateProgress);
+        // Progress updates run only while this screen is visible (onResume/onPause).
     }
 
     // 스와이프 제스처 설정 (항상 왼쪽으로 슬라이드: 서버 음악에선 다운로드, 보관함에선 삭제)
@@ -393,6 +428,11 @@ public class MainActivity extends Activity {
                 musicDb.saveSong(song, downloadedFile.getAbsolutePath());
 
                 runOnUiThread(() -> {
+                    if (isDestroyed()) return;
+                    if (isLocalTab) {
+                        librarySongs = musicDb.getAllSongs();
+                        applySongFilter();
+                    }
                     Toast.makeText(MainActivity.this, "다운로드 완료: " + song.getTitle(), Toast.LENGTH_SHORT).show();
                 });
             } catch (Exception e) {
@@ -413,6 +453,7 @@ public class MainActivity extends Activity {
             localFile.delete();
         }
         musicDb.deleteSong(song.getId());
+        librarySongs.removeIf(item -> item.getId() == song.getId());
 
         songs.remove(position);
         songAdapter.notifyItemRemoved(position);
@@ -422,46 +463,73 @@ public class MainActivity extends Activity {
             currentSongIndex--;
         }
         updateNavigationButtons();
-        txtStatus.setText("보관함 (" + songs.size() + "곡)");
+        updateLibraryState();
         Toast.makeText(this, "보관함에서 삭제되었습니다: " + song.getTitle(), Toast.LENGTH_SHORT).show();
     }
 
     // 탭 전환 (서버 음악 <-> 다운로드 보관함)
     private void switchTab(boolean showLocal) {
         isLocalTab = showLocal;
-
-        Song currentPlayingSong = (currentSongIndex >= 0 && currentSongIndex < songs.size())
-                ? songs.get(currentSongIndex) : null;
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+                .putBoolean("main_local_tab", showLocal).apply();
+        btnTabLocal.setSelected(showLocal);
+        btnTabServer.setSelected(!showLocal);
 
         if (isLocalTab) {
-            songs = musicDb.getAllSongs();
-            btnTabServer.setAlpha(0.6f);
-            btnTabLocal.setAlpha(1.0f);
-            txtStatus.setText("보관함 (" + songs.size() + "곡)");
+            librarySongs = musicDb.getAllSongs();
+            txtStatus.setText(R.string.library_offline_ready);
             btnImportMp3.setVisibility(View.VISIBLE);
             btnRefreshMetadata.setVisibility(View.GONE);
         } else {
-            songs = new ArrayList<>(serverSongs);
-            btnTabServer.setAlpha(1.0f);
-            btnTabLocal.setAlpha(0.6f);
-            txtStatus.setText("서버 음악 (" + songs.size() + "곡)");
+            librarySongs = new ArrayList<>(serverSongs);
+            txtStatus.setText(serverAvailable ? getServerDisplayName(musicApi.getBaseUrl())
+                    : "서버 연결 확인 중...");
             btnImportMp3.setVisibility(View.GONE);
             btnRefreshMetadata.setVisibility(serverAvailable ? View.VISIBLE : View.GONE);
         }
 
-        // 현재 재생 중인 곡의 인덱스를 새 목록에서 찾음
+        applySongFilter();
+        updateNavigationButtons();
+        restoreCurrentPlayback();
+    }
+
+    private void applySongFilter() {
+        handler.removeCallbacks(filterSearch);
+        songs = SongSearch.filter(librarySongs, searchSongs.getText().toString());
+        songAdapter.setSongs(songs);
         currentSongIndex = -1;
-        if (currentPlayingSong != null) {
+        MediaItem current = musicPlayer.getCurrentMediaItem();
+        if (current != null) {
             for (int i = 0; i < songs.size(); i++) {
-                if (songs.get(i).getId() == currentPlayingSong.getId()) {
+                if (String.valueOf(songs.get(i).getId()).equals(current.mediaId)) {
                     currentSongIndex = i;
                     break;
                 }
             }
         }
-        updateNavigationButtons();
-        songAdapter.setSongs(songs);
-        restoreCurrentPlayback();
+        updateLibraryState();
+    }
+
+    private void updateLibraryState() {
+        boolean searching = !searchSongs.getText().toString().trim().isEmpty();
+        txtLibraryCount.setText(searching
+                ? getString(R.string.library_search_count, songs.size(), librarySongs.size())
+                : getString(R.string.library_count, librarySongs.size()));
+        boolean empty = songs.isEmpty();
+        recyclerSongs.setVisibility(empty ? View.GONE : View.VISIBLE);
+        emptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
+        txtListHint.setVisibility(empty ? View.GONE : View.VISIBLE);
+        txtListHint.setText(isLocalTab ? R.string.library_swipe_delete : R.string.library_swipe_download);
+        txtEmptyTitle.setText(searching ? R.string.library_no_results
+                : isLocalTab ? R.string.library_empty_title : R.string.library_server_empty_title);
+        txtEmptyDescription.setText(searching ? R.string.library_no_results_description
+                : isLocalTab ? R.string.library_empty_description : R.string.library_server_empty_description);
+    }
+
+    private void hideSearchKeyboard() {
+        searchSongs.clearFocus();
+        InputMethodManager keyboard = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (keyboard != null) keyboard.hideSoftInputFromWindow(searchSongs.getWindowToken(), 0);
     }
 
     // 1. 서버에서 음악 목록 불러오기 (다중 IP 자동 감지 & 원격 매니저 탐색)
@@ -484,9 +552,9 @@ public class MainActivity extends Activity {
                         btnRemoteStart.setVisibility(View.GONE);
                         if (!isLocalTab) {
                             btnRefreshMetadata.setVisibility(View.VISIBLE);
-                            songs = new ArrayList<>(serverSongs);
-                            songAdapter.setSongs(songs);
-                            txtStatus.setText(getServerDisplayName(activeUrl) + " (" + songs.size() + "곡)");
+                            librarySongs = new ArrayList<>(serverSongs);
+                            applySongFilter();
+                            txtStatus.setText(getServerDisplayName(activeUrl));
                             restoreCurrentPlayback();
                         }
                     });
@@ -512,11 +580,7 @@ public class MainActivity extends Activity {
                 // 서버 연결 실패 시 다운로드 보관함으로 자동 전환
                 switchTab(true);
 
-                if (songs.isEmpty()) {
-                    txtStatus.setText("서버 오프라인 (보관함에 저장된 곡 없음)");
-                } else {
-                    txtStatus.setText("보관함: " + songs.size() + "곡 (오프라인)");
-                }
+                txtStatus.setText(R.string.library_offline_ready);
             });
         }).start();
     }
@@ -713,10 +777,9 @@ public class MainActivity extends Activity {
                         SongAdapter.clearCoverCache();
                         serverSongs = refreshed;
                         if (!isLocalTab) {
-                            songs = new ArrayList<>(refreshed);
-                            songAdapter.setSongs(songs);
-                            txtStatus.setText(getServerDisplayName(activeUrl)
-                                    + " (" + songs.size() + "곡)");
+                            librarySongs = new ArrayList<>(refreshed);
+                            applySongFilter();
+                            txtStatus.setText(getServerDisplayName(activeUrl));
                             restoreCurrentPlayback();
                         }
                         Toast.makeText(this, "서버 음악 정보 보정이 완료되었습니다.",
@@ -757,7 +820,7 @@ public class MainActivity extends Activity {
 
     private String getServerDisplayName(String url) {
         String host = MusicApi.extractHost(url);
-        return getHostNickname(host) + " (" + host + ")";
+        return getHostNickname(host) + " · 연결됨";
     }
 
     // 선택한 음악 재생
@@ -804,11 +867,13 @@ public class MainActivity extends Activity {
     }
 
     private void openNowPlaying() {
+        hideSearchKeyboard();
         startActivity(new Intent(this, NowPlayingActivity.class));
     }
 
     private void restoreCurrentPlayback() {
         MediaItem item = musicPlayer.getCurrentMediaItem();
+        miniPlayer.setVisibility(item == null ? View.GONE : View.VISIBLE);
         if (item == null) return;
 
         if (item.mediaMetadata.title != null) {
@@ -846,16 +911,18 @@ public class MainActivity extends Activity {
     // 현재 재생 대기열에 2곡 이상 있으면 이전/다음 곡으로 이동 가능
     private void updateNavigationButtons() {
         boolean canNavigate = musicPlayer.getMediaItemCount() > 1;
-        btnPrevious.setEnabled(canNavigate);
         btnNext.setEnabled(canNavigate);
+        btnNext.setAlpha(canNavigate ? 1f : .35f);
     }
 
     // 재생 / 일시정지 버튼 표시
     private void updatePlayPauseButton() {
         if (musicPlayer.isPlaying()) {
-            btnPlayPause.setText("일시정지");
+            btnPlayPause.setImageResource(R.drawable.ic_library_pause);
+            btnPlayPause.setContentDescription(getString(R.string.library_pause));
         } else {
-            btnPlayPause.setText("재생");
+            btnPlayPause.setImageResource(R.drawable.ic_library_play);
+            btnPlayPause.setContentDescription(getString(R.string.library_play));
         }
     }
 
@@ -893,8 +960,28 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (musicPlayer == null) return;
+        if (isLocalTab) {
+            librarySongs = musicDb.getAllSongs();
+            applySongFilter();
+        }
+        restoreCurrentPlayback();
+        handler.removeCallbacks(updateProgress);
+        handler.post(updateProgress);
+    }
+
+    @Override
+    protected void onPause() {
+        handler.removeCallbacks(updateProgress);
+        super.onPause();
+    }
+
+    @Override
     protected void onDestroy() {
         handler.removeCallbacks(updateProgress);
+        handler.removeCallbacks(filterSearch);
         importExecutor.shutdown();
 
         if (musicPlayer != null) {
