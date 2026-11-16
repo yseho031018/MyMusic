@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self';">
+  <title>My Music</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true">
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.7 1 1.1 1.7 1.1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13M10 11v5M14 11v5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path class="fill" d="M8 5.5v13a.8.8 0 0 0 1.2.7l10.4-6.5a.8.8 0 0 0 0-1.4L9.2 4.8A.8.8 0 0 0 8 5.5Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect class="fill" x="6" y="5" width="4" height="14" rx="1.2"/><rect class="fill" x="14" y="5" width="4" height="14" rx="1.2"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path class="fill" d="M18 6.3v11.4a.8.8 0 0 1-1.2.7L9 13.2v4.3a1 1 0 0 1-2 0v-11a1 1 0 0 1 2 0v4.3l7.8-5.2a.8.8 0 0 1 1.2.7Z"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path class="fill" d="M6 6.3v11.4a.8.8 0 0 0 1.2.7l7.8-5.2v4.3a1 1 0 0 0 2 0v-11a1 1 0 0 0-2 0v4.3L7.2 5.6a.8.8 0 0 0-1.2.7Z"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M16 4h4v4M4 20 20 4M20 16v4h-4M15 15l5 5M4 4l5 5"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 3 3-3 3M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3M20 13v2a4 4 0 0 1-4 4H4"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5ZM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5ZM16 9l5 6M21 9l-5 6"/></symbol>
+    <symbol id="i-lyrics" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8M12 17.2v.1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.4v.1"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.1"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/><path d="M8 7.5h.01M8 16.5h.01"/></symbol>
+    <symbol id="i-spinner" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/></symbol>
+  </svg>
+
+  <div class="titlebar"><span>My Music</span></div>
+
+  <div class="app">
+    <section class="library" id="library">
+      <header class="library-head">
+        <h1>My Music</h1>
+        <div class="head-actions">
+          <button class="icon-button ghost" id="btnHelp" type="button" aria-label="단축키와 도움말" title="단축키와 도움말 (?)">
+            <svg><use href="#i-help"/></svg>
+          </button>
+          <button class="icon-button ghost" id="btnSettings" type="button" aria-label="설정 열기" title="설정">
+            <svg><use href="#i-settings"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="tabs" role="tablist" aria-label="음악 보관 위치">
+        <button id="tabServer" class="tab active" type="button" role="tab" aria-selected="true" title="휴대폰 앱과 함께 쓰는 음악 서버">서버 음악</button>
+        <button id="tabLocal" class="tab" type="button" role="tab" aria-selected="false" title="이 컴퓨터에만 저장된 음악">이 PC</button>
+      </div>
+
+      <label class="search">
+        <svg class="search-icon"><use href="#i-search"/></svg>
+        <input id="search" type="search" placeholder="제목 또는 아티스트 검색" autocomplete="off">
+        <kbd id="searchHint">Ctrl F</kbd>
+        <button id="clearSearch" class="icon-button small ghost" type="button" aria-label="검색어 지우기" hidden>
+          <svg><use href="#i-close"/></svg>
+        </button>
+      </label>
+
+      <div class="toolbar">
+        <div class="toolbar-info">
+          <p id="status" role="status"><span class="dot"></span><span id="statusText">서버 확인 중</span></p>
+          <p id="count">전체 0곡</p>
+        </div>
+        <div class="toolbar-actions">
+          <button id="btnRefresh" class="chip" type="button" title="빠진 아티스트·앨범 이름과 앨범 커버를 온라인에서 찾아 채웁니다">
+            <svg class="chip-icon"><use href="#i-sparkle"/></svg><svg class="spin"><use href="#i-spinner"/></svg><span id="refreshLabel">앨범 정보 채우기</span>
+          </button>
+          <button id="btnUpload" class="chip" type="button" title="MP3를 서버에 올려 휴대폰에서도 들을 수 있게 합니다">
+            <svg class="chip-icon"><use href="#i-upload"/></svg><svg class="spin"><use href="#i-spinner"/></svg><span id="uploadLabel">MP3 업로드</span>
+          </button>
+          <button id="btnImport" class="chip" type="button" title="MP3를 이 PC의 보관함에 복사합니다" hidden>
+            <svg class="chip-icon"><use href="#i-plus"/></svg><svg class="spin"><use href="#i-spinner"/></svg><span id="importLabel">MP3 가져오기</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="list-wrap">
+        <div id="list" class="list" role="list"></div>
+        <div id="empty" class="empty" hidden>
+          <div class="empty-disc" aria-hidden="true"></div>
+          <h2 id="emptyTitle"></h2>
+          <p id="emptyDescription"></p>
+          <div class="empty-actions">
+            <button id="btnRetry" class="primary" type="button" hidden>
+              <svg><use href="#i-refresh"/></svg><span id="retryLabel">다시 연결</span>
+            </button>
+            <button id="btnEmptySettings" class="chip" type="button" hidden>
+              <svg><use href="#i-server"/></svg><span>서버 주소 확인</span>
+            </button>
+            <button id="btnEmptyAdd" class="primary" type="button" hidden>
+              <svg><use href="#i-plus"/></svg><span id="emptyAddLabel">MP3 추가</span>
+            </button>
+          </div>
+        </div>
+        <div class="drop-hint"><svg><use href="#i-upload"/></svg><span>MP3를 여기에 놓으세요</span><small id="dropTarget">서버에 업로드됩니다</small></div>
+      </div>
+    </section>
+
+    <section class="player">
+      <header class="player-head">
+        <h2>지금 재생 중</h2>
+        <div class="lyrics-tools" role="group" aria-label="가사">
+          <button id="cc" class="toggle" type="button" aria-pressed="true" title="레코드 아래에 싱크 가사를 한 줄씩 표시합니다">
+            <span class="toggle-track" aria-hidden="true"></span><span>자막</span>
+          </button>
+          <button id="btnLyrics" class="chip" type="button" title="전체 가사 보기 (L)">
+            <svg><use href="#i-lyrics"/></svg><span>전체 가사</span>
+          </button>
+        </div>
+      </header>
+      <div class="deck-wrap">
+        <canvas id="deck" aria-label="회전하는 앨범 레코드와 재생 바늘"></canvas>
+      </div>
+      <button id="caption" class="caption bars-mode" type="button" aria-label="전체 가사 보기" title="눌러서 전체 가사 보기">
+        <span class="caption-lines">
+          <span id="linePrev"></span>
+          <span id="lineCurrent"></span>
+          <span id="lineNext"></span>
+        </span>
+        <canvas id="bars" class="bars" aria-hidden="true"></canvas>
+      </button>
+      <div class="track">
+        <h3 id="trackTitle">재생 중인 음악 없음</h3>
+        <p id="trackArtist">목록에서 음악을 재생해 주세요</p>
+      </div>
+      <div class="progress">
+        <input id="seek" class="slider" type="range" min="0" max="1000" value="0" aria-label="재생 위치" disabled>
+        <div class="times">
+          <span id="timeNow">0:00</span>
+          <span id="timeTotal">0:00</span>
+        </div>
+      </div>
+      <div class="transport">
+        <button id="shuffle" class="round-button side" type="button" aria-label="셔플" aria-pressed="false" title="셔플">
+          <svg><use href="#i-shuffle"/></svg>
+        </button>
+        <button id="prev" class="round-button skip" type="button" aria-label="이전 곡" title="이전 곡 (Ctrl+←)">
+          <svg><use href="#i-prev"/></svg>
+        </button>
+        <button id="play" class="play" type="button" aria-label="재생" title="재생 (Space)">
+          <svg class="icon-play"><use href="#i-play"/></svg>
+          <svg class="icon-pause"><use href="#i-pause"/></svg>
+          <svg class="icon-loading"><use href="#i-spinner"/></svg>
+        </button>
+        <button id="next" class="round-button skip" type="button" aria-label="다음 곡" title="다음 곡 (Ctrl+→)">
+          <svg><use href="#i-next"/></svg>
+        </button>
+        <button id="repeat" class="round-button side" type="button" aria-label="반복" aria-pressed="false" title="반복">
+          <svg><use href="#i-repeat"/></svg>
+          <span class="repeat-one">1</span>
+        </button>
+      </div>
+      <p id="modeText" class="mode-text" aria-live="polite"></p>
+      <div class="volume">
+        <button id="mute" class="icon-button small ghost" type="button" aria-label="음소거" title="음소거 (M)">
+          <svg class="icon-volume"><use href="#i-volume"/></svg>
+          <svg class="icon-mute"><use href="#i-mute"/></svg>
+        </button>
+        <input id="volume" class="slider" type="range" min="0" max="100" value="80" aria-label="음량" title="음량 (↑ ↓)">
+        <span id="volumeText" class="volume-text">80</span>
+      </div>
+    </section>
+  </div>
+
+  <audio id="audio" preload="metadata"></audio>
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <svg class="toast-icon"><use id="toastIcon" href="#i-info"/></svg>
+    <span id="toastText"></span>
+  </div>
+
+  <dialog id="settingsDialog">
+    <h2>설정</h2>
+    <label class="field" for="serverInput">
+      <span>서버 주소</span>
+      <input id="serverInput" type="text" spellcheck="false" placeholder="예: http://192.168.0.10:8080" aria-describedby="serverHint serverError">
+    </label>
+    <p id="serverError" class="field-error" role="alert" hidden></p>
+    <p id="serverHint" class="hint">휴대폰 앱과 같은 음악 서버를 사용합니다. 이 PC에서 서버를 실행 중이면 기본 주소(http://127.0.0.1:8080)를 그대로 두면 됩니다.</p>
+    <div class="dialog-actions">
+      <button id="settingsCancel" class="secondary" type="button">취소</button>
+      <button id="settingsSave" class="primary" type="button"><svg class="spin"><use href="#i-spinner"/></svg><span id="settingsSaveLabel">저장하고 연결</span></button>
+    </div>
+  </dialog>
+
+  <dialog id="helpDialog" class="help-dialog">
+    <div class="dialog-title">
+      <h2>단축키와 도움말</h2>
+      <button id="helpClose" class="icon-button ghost small" type="button" aria-label="도움말 닫기"><svg><use href="#i-close"/></svg></button>
+    </div>
+    <section class="help-section">
+      <h3>재생</h3>
+      <dl class="shortcuts">
+        <dt><kbd>Space</kbd></dt><dd>재생 / 일시정지</dd>
+        <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>5초 뒤로 / 앞으로</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>←</kbd> <kbd>→</kbd></dt><dd>이전 곡 / 다음 곡</dd>
+        <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>음량 조절</dd>
+        <dt><kbd>M</kbd></dt><dd>음소거</dd>
+      </dl>
+    </section>
+    <section class="help-section">
+      <h3>찾기와 가사</h3>
+      <dl class="shortcuts">
+        <dt><kbd>Ctrl</kbd> <kbd>F</kbd></dt><dd>곡 검색</dd>
+        <dt><kbd>L</kbd></dt><dd>전체 가사 열기</dd>
+        <dt><kbd>?</kbd></dt><dd>이 도움말 열기</dd>
+        <dt><kbd>Esc</kbd></dt><dd>창 닫기 · 검색 빠져나오기</dd>
+      </dl>
+    </section>
+    <section class="help-section">
+      <h3>알아두면 좋은 점</h3>
+      <ul class="help-tips">
+        <li><strong>서버 음악</strong>은 휴대폰 앱과 함께 쓰는 목록이고, <strong>이 PC</strong>는 이 컴퓨터에만 저장됩니다.</li>
+        <li>MP3 파일을 목록으로 끌어다 놓아도 추가할 수 있습니다.</li>
+        <li>가사가 노래보다 앞서거나 늦으면 전체 가사 창 아래에서 0.5초씩 맞출 수 있고, 곡마다 기억됩니다.</li>
+      </ul>
+    </section>
+  </dialog>
+
+  <dialog id="lyricsDialog" class="lyrics-dialog">
+    <div class="lyrics-head">
+      <div class="lyrics-meta">
+        <p id="lyricsTitle"></p>
+        <p id="lyricsArtist"></p>
+      </div>
+      <button id="lyricsClose" class="icon-button ghost" type="button" aria-label="가사 닫기">
+        <svg><use href="#i-close"/></svg>
+      </button>
+    </div>
+    <div id="lyricsBody" class="lyrics-body" tabindex="-1" autofocus></div>
+    <div id="lyricsOffsetControls" class="offset-controls" role="group" aria-labelledby="offsetTitle">
+      <span id="offsetTitle" class="offset-title">가사 타이밍</span>
+      <div class="offset-buttons">
+        <button id="offsetSlower" class="secondary" type="button" title="가사가 노래보다 먼저 나올 때">가사 0.5초 늦게</button>
+        <span id="lyricsOffset" class="offset-value" aria-live="polite">맞춤 없음</span>
+        <button id="offsetFaster" class="secondary" type="button" title="가사가 노래보다 늦게 나올 때">가사 0.5초 빠르게</button>
+      </div>
+      <button id="offsetReset" class="text-button" type="button" hidden>원래대로</button>
+    </div>
+  </dialog>
+
+  <dialog id="confirmDialog" class="confirm-dialog">
+    <h2 id="confirmTitle">곡을 삭제할까요?</h2>
+    <p id="confirmText"></p>
+    <p id="confirmDetail" class="hint"></p>
+    <div class="dialog-actions">
+      <button id="confirmCancel" class="secondary" type="button" autofocus>취소</button>
+      <button id="confirmOk" class="danger" type="button">삭제</button>
+    </div>
+  </dialog>
+
+  <script src="turntable.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

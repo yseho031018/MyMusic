@@ -1,0 +1,61 @@
+{
+  "name": "my-music",
+  "productName": "My Music",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Installable desktop player for the My Music server",
+  "author": "My Music",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-icon.ps1",
+    "dist": "npm run icon && node scripts/make-ico.mjs && node scripts/dist.mjs"
+  },
+  "dependencies": {
+    "music-metadata": "^10.9.1"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.0.12",
+    "png-to-ico": "^2.1.8"
+  },
+  "build": {
+    "appId": "com.mymusic.desktop",
+    "productName": "My Music",
+    "asar": true,
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.cjs",
+      "lyrics.js",
+      "renderer/**/*",
+      "assets/icon.png",
+      "assets/icon.ico",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "My Music",
+      "artifactName": "MyMusicSetup-${version}.${ext}"
+    }
+  }
+}
